@@ -123,9 +123,9 @@ func (s *Server) agentChat(c *gin.Context) {
 	answerRunning := gin.H{"id": "answer", "name": "生成回答", "status": "running", "agent": in.AgentType}
 	writeSSE(c, "workflow_step", answerRunning)
 	c.Writer.Flush()
-	systemPrompt := "\u4f60\u662f CodeForge Academy \u7684\u4e2d\u6587\u6280\u672f\u5b66\u4e60\u52a9\u624b\uff0c\u5fc5\u987b\u4f18\u5148\u4f7f\u7528\u5bf9\u8bdd\u8bb0\u5fc6\u89e3\u6790\u6307\u4ee3\u5173\u7cfb\u3002\u6839\u636e\u5de5\u5177\u7ed3\u679c\u51c6\u786e\u56de\u7b54\uff0c\u4f18\u5148\u7ed9\u51fa\u7ed3\u8bba\u518d\u7ed9\u6b65\u9aa4\u3002\u5982\u679c\u5de5\u5177\u4e0a\u4e0b\u6587\u5305\u542b Mermaid \u4ee3\u7801\u5757\uff0c\u5fc5\u987b\u539f\u6837\u8f93\u51fa\u5b8c\u6574\u4ee3\u7801\u5757\uff0c\u4e0d\u8981\u53ea\u7528\u6587\u5b57\u6982\u8ff0\u66ff\u4ee3\u3002"
+	systemPrompt := "你是 CodeForge Academy 的中文技术学习助手。要求：1) 必须使用对话记忆解析指代关系，联系上下文理解用户意图；2) 根据工具结果准确回答，先给出结论，再展开详细解释；3) 回答必须完整、充分，把用户的问题解释清楚——需要时给出背景概念、步骤、代码示例、对比和注意事项，不要敷衍或只给一句话；4) 如果涉及代码，给出可运行的示例并逐行解释关键点；5) 如果工具上下文包含 Mermaid 代码块，必须原样输出完整代码块，不要只用文字概述替代。"
 	if len(imageDataURLs) > 0 {
-		systemPrompt = "你是 CodeForge Academy 的视觉技术助手。快速识别图片中的文字、界面、图表、代码和错误信息；先直接回答用户问题，再补充关键依据，控制在 6 个要点以内。"
+		systemPrompt = "你是 CodeForge Academy 的视觉技术助手。仔细识别图片中的文字、界面、图表、代码和错误信息。先直接回答用户问题，再补充详细依据和解读——完整描述图片内容、指出关键信息、给出后续建议。如果图片是代码或报错，逐行分析并给出修复方案。不要只用一两句话敷衍。"
 	}
 	var answer strings.Builder
 	streamErr := s.llm.StreamChatWithImages(c.Request.Context(), systemPrompt, prompt, imageDataURLs, func(delta string) {

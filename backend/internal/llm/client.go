@@ -75,9 +75,9 @@ func (c *Client) streamResponses(ctx context.Context, system, user string, image
 		userContent = content
 	}
 	input := []map[string]any{{"role": "system", "content": system}, {"role": "user", "content": userContent}}
-	maxTokens := 700
+	maxTokens := 4096
 	if len(images) > 0 {
-		maxTokens = 400
+		maxTokens = 2048
 	}
 	body, _ := json.Marshal(apiRequest{Model: c.model, Input: input, Stream: true, MaxOutputTokens: maxTokens})
 	res, err := c.request(ctx, c.baseURL+"/responses", body)
@@ -138,7 +138,7 @@ func (c *Client) streamChatCompletions(ctx context.Context, system, user string,
 		userContent = content
 	}
 	messages := []map[string]any{{"role": "system", "content": system}, {"role": "user", "content": userContent}}
-	body, _ := json.Marshal(apiRequest{Model: c.model, Messages: messages, Stream: true, MaxOutputTokens: 600, Temperature: .3})
+	body, _ := json.Marshal(apiRequest{Model: c.model, Messages: messages, Stream: true, MaxOutputTokens: 4096, Temperature: .7})
 	res, err := c.request(ctx, c.baseURL+"/chat/completions", body)
 	if err != nil {
 		return err
@@ -196,5 +196,5 @@ func (c *Client) request(ctx context.Context, url string, body []byte) (*http.Re
 	return res, nil
 }
 func fallback(q string) string {
-	return "我已分析你的问题：" + q + "\n\n建议按「概念拆解 → 最小示例 → 边界验证 → 总结复盘」四步推进。当前模型服务不可用，已使用本地降级回答。"
+	return "当前模型服务不可用，无法生成 AI 回答。\n\n你的问题：" + q + "\n\n建议检查 .env 中的 ARK_API_KEY 和 ARK_MODEL 配置，确保模型服务正常运行后重试。"
 }
