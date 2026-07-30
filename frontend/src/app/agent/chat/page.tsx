@@ -445,43 +445,49 @@ export default function AgentChatPage() {
                   )}
                   <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
 
-                  {/* 内联工作流步骤：每条 assistant 消息都展示自己的工作流，切走再回来不丢失 */}
+                  {/* 工作流步骤：每条 assistant 消息都展示自己的工作流，切走再回来不丢失 */}
                   {showWorkflow && (
-                    <div className="mt-3 rounded-lg border border-border bg-surface-container-lowest p-3">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <GitBranch className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-xs font-medium text-foreground">工作流</span>
-                      </div>
-                      <div className="space-y-1.5">
-                        {msg.workflow!.map((step, wi) => (
-                          <div key={step.id || wi} className="flex flex-wrap items-center gap-2">
-                            {step.status === 'done' ? (
-                              <div className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center">
-                                <svg className="w-2.5 h-2.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              </div>
-                            ) : step.status === 'failed' ? (
-                              <div className="w-4 h-4 rounded-full bg-destructive/20 flex items-center justify-center text-[10px] text-destructive">!</div>
-                            ) : step.status === 'running' ? (
-                              <div className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center">
-                                <Loader2 className="w-2.5 h-2.5 text-primary animate-spin" />
-                              </div>
-                            ) : (
-                              <div className="w-4 h-4 rounded-full bg-surface-container flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />
-                              </div>
-                            )}
-                            <span className={`text-xs ${step.status === 'done' ? 'text-foreground' : step.status === 'failed' ? 'text-destructive' : step.status === 'running' ? 'text-primary' : 'text-muted-foreground'}`}>
-                              {step.name}
-                            </span>
-                            {step.tool && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary/50 text-secondary-foreground">{step.tool}</span>
-                            )}
-                            {step.reason && <span className="w-full pl-6 text-[11px] text-muted-foreground">{step.reason}</span>}
-                            {step.result && <span className="w-full pl-6 text-[11px] text-muted-foreground truncate">{step.result}</span>}
-                          </div>
-                        ))}
+                    <div className="mt-3">
+                      <div className="bg-surface-container-lowest border border-border rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <GitBranch className="w-4 h-4 text-primary" />
+                          <span className="text-sm font-medium text-foreground">{isLast && isLoading ? '工作流执行中' : '工作流'}</span>
+                          <span className="text-xs text-muted-foreground">动态 Tool 规划</span>
+                        </div>
+                        <div className="space-y-2">
+                          {msg.workflow!.map((step, wi) => (
+                            <div key={step.id || wi} className="flex flex-wrap items-center gap-3">
+                              {step.status === 'done' ? (
+                                <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
+                                  <svg className="w-3 h-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </div>
+                              ) : step.status === 'failed' ? (
+                                <div className="w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center text-xs text-destructive">!</div>
+                              ) : step.status === 'running' ? (
+                                <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
+                                  <Loader2 className="w-3 h-3 text-primary animate-spin" />
+                                </div>
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-surface-container flex items-center justify-center">
+                                  <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+                                </div>
+                              )}
+                              <span className={`text-sm ${step.status === 'done' ? 'text-foreground' : step.status === 'failed' ? 'text-destructive' : step.status === 'running' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                {step.name}
+                              </span>
+                              {step.agent && (
+                                <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">{step.agent}</span>
+                              )}
+                              {step.tool && (
+                                <span className="text-xs px-2 py-0.5 rounded bg-secondary/50 text-secondary-foreground">{step.tool}</span>
+                              )}
+                              {step.reason && <span className="w-full pl-8 text-xs text-muted-foreground">选择原因：{step.reason}</span>}
+                              {step.result && <span className="w-full pl-8 text-xs text-muted-foreground">执行结果：{step.result}</span>}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
