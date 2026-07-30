@@ -95,7 +95,7 @@ func (s *Server) planAgentTools(uid string, in agentChatInput, history []model.S
 	if len(in.Attachments) > 0 {
 		add("doc_reader", "检测到图片或文件附件，先读取可识别内容")
 	}
-	if containsAny(query, "最新", "今天", "新闻", "联网", "搜索网页", "查资料", "look up", "search web") {
+	if containsAny(query, "最新", "今天", "新闻", "联网", "搜索网页", "查资料", "look up", "search web", "实时", "当前", "现在", "2024", "2025", "2026", "更新", "变化", "动态", "热点", "发布", "版本", "release", "最新版", "最新动态", "资讯", "行情", "趋势", "上线", "公告", "什么是", "什么是", "介绍一下", "了解", "对比", "区别", "推荐", "best", "latest", "current", "news", "update", "version", "trend") {
 		add("web_search", "问题需要联网获取最新资料")
 	}
 	if containsAny(query, "代码", "报错", "bug", "异常", "编译", "函数", "class ", "def ") {
@@ -139,6 +139,13 @@ func (s *Server) planAgentTools(uid string, in agentChatInput, history []model.S
 	}
 	if containsAny(query, "git", "提交信息", "commit", "分支", "工作区状态") {
 		add("git_helper", "问题涉及 Git 或工作区变更")
+	}
+	// 关键词未命中时，用 LLM 判断是否需要联网搜索
+	if !seen["web_search"] && s.llm != nil && s.llm.Enabled() {
+		decision := s.llmShouldSearch(in.Message, history)
+		if decision {
+			add("web_search", "AI 判断该问题需要联网获取外部信息")
+		}
 	}
 	return scheduleTools(selected)
 }
@@ -771,4 +778,17 @@ func wikiSearch(ctx context.Context, q string) (string, error) {
 		return "", fmt.Errorf("Wikipedia 没有返回结果")
 	}
 	return "联网搜索（Wikipedia 回退）：\n- " + strings.Join(parts, "\n- "), nil
+}
+
+// llmShouldSearch 用 LLM 快速判断当前问题是否需要联网搜索。
+// 仅在关键词规则未命中时调用，避免每次请求都消耗 LLM 额度。
+func (s *Server) llmShouldSearch(message string, history []model.SessionMessage) bool {
+	systemPrompt := "你是一个搜索意图判断器。判断用户的问题是否需要联网搜索才能回答（例如：需要最新信息、实时数据、新闻、技术版本、具体事实查证、产品对比等）。只回答 JSON：{\"need_search\": true} 或 {\"need_search\": false}。不要回答其他内容。"
+	userPrompt := "问题：" + message + "\n\n请判断是否需要联网搜索。"
+	answer, err := s.llm.Chat(context.Background(), systemPrompt, userPrompt)
+	if err != nil {
+		return false
+	}
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	return strings.Contains(answer, "true")
 }
