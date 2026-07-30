@@ -28,13 +28,13 @@
 
 ---
 
-## ✨ 核心能力
+## 核心能力
 
 <table>
 <tr>
 <td width="50%">
 
-### 🤖 AI Agent 对话
+### AI Agent 对话
 
 - **SSE 流式输出** — token 逐字推送，零延迟感知
 - **智能路由** — 根据问题、页面、附件和会话记忆自动分发到 6 类 Agent
@@ -49,14 +49,14 @@
 </td>
 <td width="50%">
 
-### 🔍 联网搜索
+### 联网搜索
 
 - **SearXNG 本地搜索** — 无需 API Key，Docker 一键启动
 - **关键词自动提取** — 去掉对话前缀，限制长度，避免超时
 - **AI 意图判断** — 关键词未命中时，LLM 判断是否需要搜索
 - **多级回退** — SearXNG → DuckDuckGo → Wikipedia
 
-### 📚 学习系统
+### 学习系统
 
 - 五大方向课程流（Python / C++ / 数据库 / 算法 / Agent）
 - 每日一题 · 代码模板 · 在线运行 · 提交评分
@@ -69,7 +69,7 @@
 </tr>
 </table>
 
-## 🏗 AI Agent 架构
+## AI Agent 架构
 
 ```
 用户提问
@@ -103,7 +103,7 @@
 ```
 
 <details>
-<summary><b>📋 内置工具清单（15 个）</b></summary>
+<summary><b>内置工具清单（15 个）</b></summary>
 
 | 工具 | 分类 | 功能 |
 |------|------|------|
@@ -126,7 +126,7 @@
 </details>
 
 <details>
-<summary><b>🧠 对话记忆机制</b></summary>
+<summary><b>对话记忆机制</b></summary>
 
 - **唯一真相来源**：每轮对话的 `SessionMessage` 持久化到 PostgreSQL，不另建内存缓存
 - **工作记忆**：`loadConversationMemory` 从数据库读取最近 12 条
@@ -138,7 +138,7 @@
 </details>
 
 <details>
-<summary><b>📝 系统提示词热加载</b></summary>
+<summary><b>系统提示词热加载</b></summary>
 
 系统提示词从 `backend/prompts/system_prompt.md` 文件读取：
 
@@ -148,7 +148,7 @@
 
 </details>
 
-## ⚡ 技术栈
+## 技术栈
 
 <table>
 <tr>
@@ -194,20 +194,20 @@
 </tr>
 </table>
 
-## 🚀 快速开始
+## 快速开始
 
 ### 环境要求
 
 > Go ≥ 1.26 · Node.js ≥ 20 + pnpm 9 · Docker Desktop · PowerShell
 
-### 1️⃣ 克隆
+### 克隆
 
 ```bash
 git clone https://github.com/NoraStory/AgenticLearningSystem.git
 cd AgenticLearningSystem
 ```
 
-### 2️⃣ 配置
+### 配置
 
 ```powershell
 Copy-Item .env.example .env
@@ -228,14 +228,14 @@ SEARCH_BASE_URL=http://localhost:8081
 SEARCH_TIMEOUT_SECONDS=15
 ```
 
-### 3️⃣ 启动
+### 启动
 
 ```powershell
 .\scripts\setup.ps1                        # 首次初始化依赖
 .\scripts\start.ps1                         # 启动基础设施 + 前后端
 ```
 
-### 4️⃣ 访问
+### 访问
 
 | 入口 | 地址 |
 |------|------|
@@ -257,7 +257,7 @@ SEARCH_TIMEOUT_SECONDS=15
 
 </details>
 
-## 📁 项目结构
+## 项目结构
 
 ```
 AgenticLearningSystem/
@@ -306,7 +306,7 @@ AgenticLearningSystem/
 └── README.md                       # 📖 你在这里
 ```
 
-## ✅ 验证
+## 验证
 
 ```powershell
 # 后端
@@ -322,7 +322,7 @@ corepack pnpm lint                     # ESLint + Stylelint
 corepack pnpm exec next build          # 生产构建
 ```
 
-## 📌 依赖环境约定
+## 依赖环境约定
 
 > **所有包均使用项目内缓存目录，绝不写入全局。**
 
@@ -334,7 +334,7 @@ corepack pnpm exec next build          # 生产构建
 
 均已在 `.gitignore` 中排除。
 
-## 📚 设计文档
+## 设计文档
 
 | 文档 | 路径 |
 |------|------|
