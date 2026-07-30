@@ -1,0 +1,106 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1120"/>
+      <stop offset="0.5" stop-color="#1A1B3A"/>
+      <stop offset="1" stop-color="#2D1B4E"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="200" y1="100" x2="1000" y2="300" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#06B6D4"/>
+      <stop offset="0.5" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="textGrad" x1="300" y1="120" x2="900" y2="280" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67E8F9"/>
+      <stop offset="0.5" stop-color="#60A5FA"/>
+      <stop offset="1" stop-color="#C084FC"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="400" fill="url(#bg)"/>
+
+  <!-- Circuit traces -->
+  <g opacity="0.15" stroke="url(#accent)" stroke-width="1.5" fill="none">
+    <path d="M 0 80 H 200 L 220 100 H 350"/>
+    <path d="M 0 120 H 150 L 170 140 H 300 L 320 160 H 450"/>
+    <path d="M 0 280 H 120 L 140 300 H 280"/>
+    <path d="M 850 60 H 950 L 970 80 H 1200"/>
+    <path d="M 800 340 H 950 L 970 320 H 1200"/>
+    <path d="M 900 200 H 1050 L 1070 180 H 1200"/>
+    <circle cx="350" cy="100" r="3" fill="#06B6D4"/>
+    <circle cx="450" cy="160" r="3" fill="#3B82F6"/>
+    <circle cx="280" cy="300" r="3" fill="#8B5CF6"/>
+    <circle cx="950" cy="80" r="3" fill="#06B6D4"/>
+    <circle cx="1050" cy="180" r="3" fill="#3B82F6"/>
+  </g>
+
+  <!-- Neural network nodes -->
+  <g opacity="0.2" filter="url(#glow)">
+    <circle cx="100" cy="200" r="4" fill="#06B6D4"/>
+    <circle cx="140" cy="170" r="3" fill="#3B82F6"/>
+    <circle cx="140" cy="230" r="3" fill="#8B5CF6"/>
+    <circle cx="180" cy="155" r="3" fill="#06B6D4"/>
+    <circle cx="180" cy="200" r="4" fill="#3B82F6"/>
+    <circle cx="180" cy="245" r="3" fill="#8B5CF6"/>
+    <circle cx="220" cy="185" r="3" fill="#06B6D4"/>
+    <circle cx="220" cy="215" r="3" fill="#8B5CF6"/>
+    <line x1="100" y1="200" x2="140" y2="170" stroke="#06B6D4" stroke-width="0.8"/>
+    <line x1="100" y1="200" x2="140" y2="230" stroke="#3B82F6" stroke-width="0.8"/>
+    <line x1="140" y1="170" x2="180" y2="155" stroke="#06B6D4" stroke-width="0.8"/>
+    <line x1="140" y1="170" x2="180" y2="200" stroke="#3B82F6" stroke-width="0.8"/>
+    <line x1="140" y1="230" x2="180" y2="200" stroke="#8B5CF6" stroke-width="0.8"/>
+    <line x1="140" y1="230" x2="180" y2="245" stroke="#06B6D4" stroke-width="0.8"/>
+    <line x1="180" y1="155" x2="220" y2="185" stroke="#3B82F6" stroke-width="0.8"/>
+    <line x1="180" y1="200" x2="220" y2="185" stroke="#8B5CF6" stroke-width="0.8"/>
+    <line x1="180" y1="200" x2="220" y2="215" stroke="#06B6D4" stroke-width="0.8"/>
+    <line x1="180" y1="245" x2="220" y2="215" stroke="#3B82F6" stroke-width="0.8"/>
+  </g>
+
+  <!-- Right side neural network -->
+  <g opacity="0.2" filter="url(#glow)">
+    <circle cx="980" cy="200" r="4" fill="#8B5CF6"/>
+    <circle cx="1020" cy="170" r="3" fill="#3B82F6"/>
+    <circle cx="1020" cy="230" r="3" fill="#06B6D4"/>
+    <circle cx="1060" cy="155" r="3" fill="#8B5CF6"/>
+    <circle cx="1060" cy="200" r="4" fill="#06B6D4"/>
+    <circle cx="1060" cy="245" r="3" fill="#3B82F6"/>
+    <circle cx="1100" cy="185" r="3" fill="#8B5CF6"/>
+    <circle cx="1100" cy="215" r="3" fill="#06B6D4"/>
+    <line x1="980" y1="200" x2="1020" y2="170" stroke="#8B5CF6" stroke-width="0.8"/>
+    <line x1="980" y1="200" x2="1020" y2="230" stroke="#06B6D4" stroke-width="0.8"/>
+    <line x1="1020" y1="170" x2="1060" y2="155" stroke="#3B82F6" stroke-width="0.8"/>
+    <line x1="1020" y1="170" x2="1060" y2="200" stroke="#8B5CF6" stroke-width="0.8"/>
+    <line x1="1020" y1="230" x2="1060" y2="200" stroke="#06B6D4" stroke-width="0.8"/>
+    <line x1="1020" y1="230" x2="1060" y2="245" stroke="#3B82F6" stroke-width="0.8"/>
+    <line x1="1060" y1="155" x2="1100" y2="185" stroke="#8B5CF6" stroke-width="0.8"/>
+    <line x1="1060" y1="200" x2="1100" y2="185" stroke="#06B6D4" stroke-width="0.8"/>
+    <line x1="1060" y1="200" x2="1100" y2="215" stroke="#3B82F6" stroke-width="0.8"/>
+    <line x1="1060" y1="245" x2="1100" y2="215" stroke="#8B5CF6" stroke-width="0.8"/>
+  </g>
+
+  <!-- Code brackets -->
+  <text x="420" y="160" font-family="monospace" font-size="80" font-weight="bold" fill="url(#textGrad)" opacity="0.3">&lt;/&gt;</text>
+
+  <!-- Main title -->
+  <text x="600" y="180" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="52" font-weight="800" fill="url(#textGrad)" letter-spacing="-1">CodeForge Academy</text>
+
+  <!-- Subtitle -->
+  <text x="600" y="215" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="400" fill="#94A3B8" letter-spacing="2">全栈 AI 智能学习平台 · Agent-Driven Learning System</text>
+
+  <!-- Tech badges -->
+  <text x="600" y="260" text-anchor="middle" font-family="monospace" font-size="13" fill="#64748B" letter-spacing="1">Go 1.26 · Gin · GORM · PostgreSQL · Next.js 16 · React 19 · TypeScript 5 · Tailwind 4</text>
+
+  <!-- Decorative line -->
+  <rect x="450" y="285" width="300" height="2" rx="1" fill="url(#accent)" opacity="0.4"/>
+
+  <!-- Feature keywords -->
+  <text x="600" y="315" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#64748B" letter-spacing="3">SSE 流式工作流 · 联网搜索 · 代码沙箱 · 对话记忆 · 工具重试</text>
+</svg>

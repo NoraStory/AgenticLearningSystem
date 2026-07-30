@@ -1,110 +1,222 @@
-﻿<div align="center">
+﻿<p align="center">
+  <img src="docs/banner.svg" width="100%" alt="CodeForge Academy Banner"/>
+</p>
 
-# CodeForge Academy
+<p align="center">
+  <strong>面向开发者的 AI 智能学习平台</strong><br/>
+  SSE 流式工作流 · 联网搜索 · 代码沙箱 · 对话记忆 · 工具重试
+</p>
 
-### 全栈 AI 智能学习平台
+<p align="center">
+  <img src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white" alt="Go"/>
+  <img src="https://img.shields.io/badge/Gin-1.10-00ADD8?logo=gin&logoColor=white" alt="Gin"/>
+  <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white" alt="Next.js"/>
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React"/>
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript"/>
+  <img src="https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind"/>
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL"/>
+  <img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" alt="Docker"/>
+</p>
 
-面向开发者的 Python · C++ · 数据库 · 算法 · AI Agent 一体化学习系统
-
-Go 1.26 · Gin · GORM · PostgreSQL + pgvector · Redis · MinIO · SearXNG
-Next.js 16 · React 19 · TypeScript 5 · Tailwind CSS 4 · shadcn/ui
-
-</div>
+<p align="center">
+  <a href="#快速开始">🚀 快速开始</a> ·
+  <a href="#ai-agent-架构">🤖 Agent 架构</a> ·
+  <a href="#项目结构">📁 项目结构</a> ·
+  <a href="#技术栈">⚡ 技术栈</a> ·
+  <a href="#验证">✅ 验证</a>
+</p>
 
 ---
 
-## 项目概览
+## ✨ 核心能力
 
-CodeForge Academy 是一个全栈技术学习平台，核心是 **AI Agent 驱动的智能学习助手**。它将课程学习、算法练习、代码沙箱、简历/项目分析、AI 对话等功能整合在一个系统中，后端提供 SSE 流式 Agent 工作流，前端以工作流可视化面板实时展示工具调度与执行过程。
+<table>
+<tr>
+<td width="50%">
 
-### 核心能力
+### 🤖 AI Agent 对话
 
-| 模块 | 功能 |
+- **SSE 流式输出** — token 逐字推送，零延迟感知
+- **智能路由** — 根据问题、页面、附件和会话记忆自动分发到 6 类 Agent
+- **动态工具规划** — 关键词匹配 + LLM 判断双重机制，15 个内置工具
+- **对话记忆** — 持久化到数据库，重启/刷新后完整恢复
+- **历史会话** — 新对话 / 切换 / 删除，侧栏实时刷新
+- **工作流可视化** — 每条消息内联展示工具调度全流程
+- **工具重试** — 最多 5 次重试，间隔递增，失败降级到本地知识
+- **系统提示词热加载** — 编辑 `backend/prompts/system_prompt.md` 即时生效
+- **时间感知** — 每次请求自动注入当前时间
+
+</td>
+<td width="50%">
+
+### 🔍 联网搜索
+
+- **SearXNG 本地搜索** — 无需 API Key，Docker 一键启动
+- **关键词自动提取** — 去掉对话前缀，限制长度，避免超时
+- **AI 意图判断** — 关键词未命中时，LLM 判断是否需要搜索
+- **多级回退** — SearXNG → DuckDuckGo → Wikipedia
+
+### 📚 学习系统
+
+- 五大方向课程流（Python / C++ / 数据库 / 算法 / Agent）
+- 每日一题 · 代码模板 · 在线运行 · 提交评分
+- 学习进度 · 时长统计 · 连续打卡 · 活动流 · 成就
+- 用户画像 · 知识图谱 · 学习路径
+- 简历分析 · 项目实战 · 笔试模拟
+- 代码沙箱（Python / JS / C++ / Rust）
+
+</td>
+</tr>
+</table>
+
+## 🏗 AI Agent 架构
+
+```
+用户提问
+   │
+   ▼
+┌──────────────────┐
+│   智能路由         │  关键词 + 对话记忆 → 6 类 Agent
+└──────┬───────────┘
+       ▼
+┌──────────────────┐
+│   工具规划         │  关键词匹配 + LLM 判断
+│   (planAgentTools)│  → 联网搜索 / 文档阅读 / 代码执行 / ...
+└──────┬───────────┘
+       ▼
+┌──────────────────┐
+│   工具执行         │  最多 5 次重试，间隔递增（1s→2s→3s→4s→5s）
+│ (executeWithRetry)│  失败后注入上下文，模型用本地知识回答
+└──────┬───────────┘
+       ▼
+┌──────────────────┐
+│   上下文构建       │  对话记忆(12条) + 工具结果 + 当前时间
+└──────┬───────────┘
+       ▼
+┌──────────────────┐
+│   LLM 流式回答     │  SSE token 实时推送 → 前端逐字渲染
+└──────┬───────────┘
+       ▼
+┌──────────────────┐
+│   持久化           │  用户消息 + 助手回答 + 工作流 JSON → 数据库
+└──────────────────┘
+```
+
+<details>
+<summary><b>📋 内置工具清单（15 个）</b></summary>
+
+| 工具 | 分类 | 功能 |
+|------|------|------|
+| `web_search` | 信息获取 | SearXNG 联网搜索，Wikipedia 回退 |
+| `doc_reader` | 信息获取 | 图片/文本/代码附件解析 |
+| `code_search` | 开发工具 | 附件或工作区中查找定义与引用 |
+| `git_helper` | 开发工具 | 读取工作区状态，生成提交说明 |
+| `code_execute` | 开发工具 | 受限沙箱中运行代码 |
+| `self_heal` | 开发工具 | 分析错误并提出最小修复 |
+| `sql_explain` | 开发工具 | SQL 静态分析 + 索引优化建议 |
+| `diagram_gen` | 内容生成 | Mermaid 架构图和流程图 |
+| `mindmap_gen` | 内容生成 | Mermaid 思维导图 |
+| `quiz_gen` | 学习工具 | 按知识点生成练习题 |
+| `leetcode_fetch` | 学习工具 | 站内题库检索 |
+| `course_search` | 学习工具 | 站内课程和章节检索 |
+| `progress_query` | 学习工具 | 读取学习进度并生成建议 |
+| `resume_review` | 职业工具 | 简历结构与表达分析 |
+| `project_review` | 职业工具 | 项目源码和完成度分析 |
+
+</details>
+
+<details>
+<summary><b>🧠 对话记忆机制</b></summary>
+
+- **唯一真相来源**：每轮对话的 `SessionMessage` 持久化到 PostgreSQL，不另建内存缓存
+- **工作记忆**：`loadConversationMemory` 从数据库读取最近 12 条
+- **指代解析**：`buildConversationPrompt` 把记忆拼入提示，解析"这个/它/上面"等指代
+- **工具上下文**：`contextualToolMessage` 在追问时把最近 4 轮记忆注入工具调用
+- **完整恢复**：重启或浏览器刷新后从持久化数据恢复全部上下文
+- **会话隔离**：每个 `session_id` 独立，切换会话不影响其他会话
+
+</details>
+
+<details>
+<summary><b>📝 系统提示词热加载</b></summary>
+
+系统提示词从 `backend/prompts/system_prompt.md` 文件读取：
+
+- 带文件缓存 + 修改时间检测，**编辑文件后自动热加载，无需重启**
+- 每次请求自动注入当前时间（Asia/Shanghai）
+- 修改提示词只需编辑文件，无需重新部署
+
+</details>
+
+## ⚡ 技术栈
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### 后端
+
+| 技术 | 版本 |
 |------|------|
-| **AI Agent 对话** | SSE 流式输出 · 智能路由 · 动态工具规划 · 对话记忆 · 历史会话 · 工作流可视化 |
-| **联网搜索** | SearXNG 本地搜索 · 关键词自动提取 · Wikipedia 回退 · AI 判断搜索意图 |
-| **工具系统** | 15 个内置工具 · 关键词+AI 双重规划 · 最多 5 次重试 · 失败降级到本地知识 |
-| **课程系统** | 方向课程流 · 标签筛选 · 推荐课程 · 详情 · 点赞 · 收藏 · 评论 · 阅读进度 |
-| **算法题库** | 题目列表 · 每日一题 · 代码模板 · 在线运行 · 提交评分 |
-| **代码沙箱** | Python / JavaScript / C++ / Rust 受限执行 · 系统级沙箱隔离 |
-| **简历分析** | 模板 · 上传 · AI 分析 · 优化建议 · HTML/DOCX/PDF 导出 |
-| **项目实战** | 自建项目 · 任务生成 · 源码上传 · AI 分析建议 |
-| **笔试模拟** | AI 出题 · 题目运行 · 提交评分 · 历史记录 |
-| **学习追踪** | 学习进度 · 时长统计 · 连续打卡 · 活动流 · 成就 |
-| **用户画像** | 等级 · 聚焦领域 · 薄弱环节 · 学习风格 · 知识图谱 |
+| Go | 1.26 |
+| Gin | 1.10 |
+| GORM | 1.25 |
+| JWT | v5 |
+| MinIO Go | v7 |
 
-## 技术栈
+</td>
+<td width="33%" valign="top">
 
-### 后端（`backend/`）
+### 前端
 
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| Go | 1.26 | 运行时 |
-| Gin | 1.10 | HTTP 框架 |
-| GORM | 1.25 | ORM |
-| PostgreSQL | 16 + pgvector | 主数据库 + 向量检索 |
-| Redis | 7.4 | 缓存 |
-| MinIO | 对象存储 | 文件/附件 |
-| SearXNG | 联网搜索 | Agent 工具 |
+| 技术 | 版本 |
+|------|------|
+| Next.js | 16 |
+| React | 19 |
+| TypeScript | 5 |
+| Tailwind CSS | 4 |
+| shadcn/ui | latest |
+| pnpm | 9 |
 
-### 前端（`frontend/`）
+</td>
+<td width="33%" valign="top">
 
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| Next.js | 16 | 全栈框架 |
-| React | 19 | UI |
-| TypeScript | 5 | 类型安全 |
-| Tailwind CSS | 4 | 样式 |
-| shadcn/ui | latest | 组件库 |
-| pnpm | 9 | 包管理 |
+### 基础设施
 
-### 基础设施（`docker-compose.yml`）
+| 服务 | 端口 |
+|------|------|
+| PostgreSQL + pgvector | 5432 |
+| Redis 7.4 | 6379 |
+| SearXNG | 8081 |
+| MinIO | 9000 / 9001 |
 
-| 服务 | 镜像 | 端口 |
-|------|------|------|
-| PostgreSQL + pgvector | `pgvector/pgvector:pg16` | 5432 |
-| Redis | `redis:7.4-alpine` | 6379 |
-| SearXNG | `searxng/searxng:latest` | 8081 |
-| MinIO | `minio/minio` | 9000 / 9001 |
+</td>
+</tr>
+</table>
 
-## 快速开始
+## 🚀 快速开始
 
 ### 环境要求
 
-- Go ≥ 1.26
-- Node.js ≥ 20 + pnpm ≥ 9（通过 corepack）
-- Docker Desktop（用于基础设施）
-- PowerShell（启停脚本基于 PS）
+> Go ≥ 1.26 · Node.js ≥ 20 + pnpm 9 · Docker Desktop · PowerShell
 
-### 1. 克隆仓库
+### 1️⃣ 克隆
 
 ```bash
 git clone https://github.com/NoraStory/AgenticLearningSystem.git
 cd AgenticLearningSystem
 ```
 
-### 2. 配置环境变量
+### 2️⃣ 配置
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-编辑 `.env`，按需填写 Ark（豆包）模型配置。留空时 Agent 使用本地降级回退，系统仍可运行。
+编辑 `.env`，按需填写 Ark 模型配置。留空时 Agent 使用本地降级回退，系统仍可运行：
 
 ```env
-# 基础设施
-POSTGRES_DB=codeforge
-POSTGRES_USER=codeforge
-POSTGRES_PASSWORD=codeforge
-
-# 后端
-PORT=8080
-DATABASE_URL=postgres://codeforge:codeforge@localhost:5432/codeforge?sslmode=disable
-REDIS_ADDR=localhost:6379
-JWT_SECRET=local-development-change-this-secret
-CORS_ORIGINS=http://localhost:5000,http://127.0.0.1:5000
-
-# 可选：Ark 模型（留空时使用本地降级回退）
+# 可选：Ark 模型（留空时使用本地降级）
 ARK_API_KEY=
 ARK_MODEL=doubao-seed-2-1-pro-260628
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
@@ -116,200 +228,124 @@ SEARCH_BASE_URL=http://localhost:8081
 SEARCH_TIMEOUT_SECONDS=15
 ```
 
-### 3. 启动
+### 3️⃣ 启动
 
 ```powershell
-# 首次：初始化依赖 + 启动基础设施 + 启动前后端
-.\scripts\setup.ps1
-.\scripts\start.ps1
-
-# 已安装过依赖，跳过前端安装
-.\scripts\setup.ps1 -SkipFrontendInstall
+.\scripts\setup.ps1                        # 首次初始化依赖
+.\scripts\start.ps1                         # 启动基础设施 + 前后端
 ```
 
-### 4. 访问
+### 4️⃣ 访问
 
 | 入口 | 地址 |
 |------|------|
-| 前端 | http://localhost:5000 |
-| 后端健康检查 | http://localhost:8080/health |
-| MinIO 控制台 | http://localhost:9001（codeforge / codeforge123） |
+| 🖥 前端 | http://localhost:5000 |
+| 🔌 后端 API | http://localhost:8080/health |
+| 📦 MinIO 控制台 | http://localhost:9001 |
 
-### 默认账号
+<details>
+<summary><b>默认账号 & 状态管理</b></summary>
 
-| 邮箱 | 密码 |
-|------|------|
-| `demo@codeforge.local` | `Demo123!` |
-
-### 状态管理
+**默认账号**：`demo@codeforge.local` / `Demo123!`
 
 ```powershell
-.\scripts\status.ps1          # 查看运行状态
-.\scripts\stop.ps1            # 停止前后端
-.\scripts\stop.ps1 -Infrastructure  # 同时停止 Docker 基础设施
+.\scripts\setup.ps1 -SkipFrontendInstall   # 跳过前端依赖安装
+.\scripts\status.ps1                         # 查看运行状态
+.\scripts\stop.ps1                           # 停止前后端
+.\scripts\stop.ps1 -Infrastructure           # 同时停止 Docker
 ```
 
-## 项目结构
+</details>
+
+## 📁 项目结构
 
 ```
 AgenticLearningSystem/
-├── backend/                        # Go 后端
-│   ├── cmd/server/main.go          # 入口
+├── backend/                        # 🦫 Go 后端
+│   ├── cmd/server/main.go          #    入口
 │   ├── internal/
-│   │   ├── api/                    # HTTP 路由 + 处理器
-│   │   │   ├── agent.go            # Agent 对话 + SSE 工作流
-│   │   │   ├── agent_memory.go     # 对话记忆 + 上下文构建
-│   │   │   ├── agent_sessions.go   # 会话列表 + 删除
-│   │   │   ├── tool_planner.go     # 工具规划 + 执行器
-│   │   │   ├── tool_helpers.go     # 重试 + 关键词提取 + 提示词
-│   │   │   ├── server.go           # 路由注册 + 中间件
-│   │   │   ├── auth_user.go        # 认证 + 用户
-│   │   │   ├── course_problem.go   # 课程 + 题目
-│   │   │   ├── learning.go         # 学习路径 + 进度
-│   │   │   ├── apps.go             # 简历 + 项目 + 笔试
-│   │   │   └── ...
-│   │   ├── config/config.go        # 配置加载
-│   │   ├── database/               # 数据库连接 + 种子数据
-│   │   ├── llm/client.go           # LLM 客户端（SSE 流式）
-│   │   ├── model/models.go         # GORM 模型（32 张表）
-│   │   ├── sandbox/runner.go       # 代码沙箱执行器
-│   │   └── storage/store.go        # MinIO 对象存储
-│   ├── migrations/                 # SQL 迁移
+│   │   ├── api/                    #    路由 + 处理器
+│   │   │   ├── agent.go            #      Agent SSE 工作流
+│   │   │   ├── agent_memory.go     #      对话记忆 + 上下文
+│   │   │   ├── agent_sessions.go   #      会话列表 + 删除
+│   │   │   ├── tool_planner.go     #      工具规划 + 执行器
+│   │   │   ├── tool_helpers.go     #      重试 + 关键词 + 提示词
+│   │   │   └── server.go           #      路由 + 中间件
+│   │   ├── config/                 #    配置加载
+│   │   ├── database/               #    连接 + 迁移 + 种子
+│   │   ├── llm/client.go           #    LLM SSE 流式客户端
+│   │   ├── model/models.go         #    GORM 模型（32 表）
+│   │   ├── sandbox/runner.go       #    代码沙箱
+│   │   └── storage/store.go        #    MinIO 存储
 │   ├── prompts/
-│   │   └── system_prompt.md        # 可编辑系统提示词（运行时热加载）
-│   ├── data/uploads/               # 上传目录
-│   ├── go.mod / go.sum
-│   └── .gomodcache/ .gocache/      # 项目内 Go 缓存（不入全局）
+│   │   └── system_prompt.md        #    可编辑提示词（热加载）
+│   └── migrations/                 #    SQL 迁移
 │
-├── frontend/                       # Next.js 前端
-│   ├── src/
-│   │   ├── app/                    # App Router 页面
-│   │   │   ├── agent/chat/         # AI 对话页（工作流可视化）
-│   │   │   ├── agent/profile/      # 用户画像 + 知识图谱
-│   │   │   ├── agent/tools/        # 工具管理
-│   │   │   ├── python/ cpp/ database/ algorithm/
-│   │   │   ├── course/[id]/        # 课程详情
-│   │   │   ├── practice/           # 在线练习
-│   │   │   ├── learning-path/      # 学习路径
-│   │   │   ├── interview/          # 笔试模拟
-│   │   │   ├── project/            # 项目实战
-│   │   │   ├── resume/             # 简历分析
-│   │   │   └── profile/            # 个人中心
-│   │   ├── components/layout/      # Header + Sidebar
-│   │   ├── lib/api.ts             # API 客户端
-│   │   └── hooks/
-│   ├── documents/                   # 设计文档
-│   │   ├── API_SPEC.md
-│   │   ├── DATABASE_DESIGN.md
-│   │   └── AGENT_DESIGN.md
-│   ├── public/
-│   ├── package.json
-│   └── pnpm-lock.yaml
+├── frontend/                       # ⚛️ Next.js 前端
+│   ├── src/app/                    #    App Router 页面
+│   │   ├── agent/chat/             #      AI 对话 + 工作流
+│   │   ├── agent/profile/          #      用户画像 + 知识图谱
+│   │   ├── agent/tools/            #      工具管理
+│   │   ├── python/ cpp/ database/
+│   │   │   algorithm/              #      五大学习方向
+│   │   ├── course/ practice/
+│   │   │   learning-path/          #      课程/练习/路径
+│   │   ├── interview/ project/
+│   │   │   resume/                 #      笔试/项目/简历
+│   │   └── profile/                #      个人中心
+│   ├── documents/                  #    设计文档
+│   └── lib/api.ts                  #    API 客户端
 │
-├── scripts/                        # PowerShell 启停脚本
-│   ├── setup.ps1                   # 初始化依赖
-│   ├── start.ps1                   # 启动
-│   ├── status.ps1                  # 状态
-│   └── stop.ps1                    # 停止
-│
-├── searxng/settings.yml            # SearXNG 配置
-├── tests/fixtures/                 # 测试夹具
-├── docker-compose.yml              # 基础设施编排
-├── .env.example                    # 环境变量模板
-├── .gitignore
-├── AGENTS.md                       # AI 编码约定
-└── README.md
+├── scripts/                        # 🔧 PowerShell 脚本
+├── searxng/settings.yml            # 🔍 SearXNG 配置
+├── tests/fixtures/                 # 🧪 测试夹具
+├── docs/banner.svg                 # 🎨 README Banner
+├── docker-compose.yml              # 🐳 基础设施编排
+├── .env.example                    # 📋 环境变量模板
+├── AGENTS.md                       # 🤖 AI 编码约定
+└── README.md                       # 📖 你在这里
 ```
 
-## AI Agent 架构
-
-### 工作流
-
-```
-用户提问
-  │
-  ▼
-智能路由（routeAgent）── 根据关键词 + 对话记忆判断 Agent 类型
-  │
-  ▼
-工具规划（planAgentTools）── 关键词匹配 + LLM 判断双重机制
-  │
-  ├── 联网搜索（SearXNG → Wikipedia 回退）
-  ├── 文档阅读（图片 / 文本 / 代码附件）
-  ├── 代码检索 / 执行 / 自修复
-  ├── SQL 分析 / 图表生成 / 测验生成
-  ├── 课程检索 / 进度查询
-  ├── 简历审阅 / 项目审阅
-  └── Git 助手 / 思维导图
-  │
-  ▼
-工具执行（executeWithRetry）── 最多 5 次重试，间隔递增
-  │
-  ▼
-上下文构建（buildConversationPrompt）── 记忆 + 工具结果 + 时间注入
-  │
-  ▼
-LLM 流式回答（StreamChatWithImages）── SSE token 实时推送
-  │
-  ▼
-持久化 ── 用户消息 + 助手回答 + 工作流 JSON 全部入库
-```
-
-### 对话记忆
-
-- 每轮对话的用户消息和助手回答都持久化到 `session_messages` 表
-- `loadConversationMemory` 从数据库读取最近 12 条作为工作记忆
-- `buildConversationPrompt` 把记忆拼入模型提示，解析"这个/它/上面"等指代
-- `contextualToolMessage` 在追问时把最近 4 轮记忆注入工具调用
-- 重启或刷新后从持久化数据完整恢复上下文
-
-### 系统提示词
-
-系统提示词从 `backend/prompts/system_prompt.md` 读取，带文件缓存和修改时间检测——**编辑文件后自动热加载，无需重启**。每次请求自动注入当前时间（Asia/Shanghai）。
-
-### 工具重试机制
-
-- 工具调用失败时自动重试，最多 5 次，间隔递增（1s→2s→3s→4s→5s）
-- 前端工作流面板实时显示失败次数（已重试 X/5 次）、错误详情、累计失败次数
-- 超过上限后停止重试，注入失败上下文让模型用本地知识回答
-
-## 验证
+## ✅ 验证
 
 ```powershell
-# 后端测试
+# 后端
 cd backend
 $env:GOMODCACHE="$PWD\.gomodcache"; $env:GOCACHE="$PWD\.gocache"; $env:GOPATH="$PWD\.gopath"
-go test ./...
+go test ./...                          # 单元测试
 
 # 前端
 cd ..\frontend
 $env:COREPACK_HOME="$PWD\.corepack"
-corepack pnpm ts-check       # TypeScript 类型检查
-corepack pnpm lint           # ESLint + Stylelint
-corepack pnpm exec next build  # 生产构建
+corepack pnpm ts-check                 # TypeScript 类型检查
+corepack pnpm lint                     # ESLint + Stylelint
+corepack pnpm exec next build          # 生产构建
 ```
 
-## 依赖环境约定
+## 📌 依赖环境约定
 
-> **所有包均使用项目内 venv / 本地缓存，绝不写入全局目录。**
+> **所有包均使用项目内缓存目录，绝不写入全局。**
 
-| 运行时 | 缓存目录 |
-|--------|----------|
-| Python | `backend/.venv/` |
-| Go | `backend/.gomodcache/` `backend/.gocache/` `backend/.gopath/` |
-| 前端 | `frontend/.corepack/` `frontend/.pnpm-store/` |
+| 运行时 | 缓存目录 | 说明 |
+|--------|----------|------|
+| Python | `backend/.venv/` | `python -m venv` |
+| Go | `backend/.gomodcache/` `.gocache/` `.gopath/` | 环境变量指定 |
+| 前端 | `frontend/.corepack/` `.pnpm-store/` | corepack 管理 |
 
-上述目录均已写入 `.gitignore`，不会提交到仓库。
+均已在 `.gitignore` 中排除。
 
-## 设计文档
+## 📚 设计文档
 
 | 文档 | 路径 |
 |------|------|
-| 后端 API 接口 | `frontend/documents/API_SPEC.md` |
-| 数据库设计 | `frontend/documents/DATABASE_DESIGN.md` |
-| AI Agent 设计 | `frontend/documents/AGENT_DESIGN.md` |
-| AI 编码约定 | `AGENTS.md` |
+| 后端 API 接口 | [`frontend/documents/API_SPEC.md`](frontend/documents/API_SPEC.md) |
+| 数据库设计 | [`frontend/documents/DATABASE_DESIGN.md`](frontend/documents/DATABASE_DESIGN.md) |
+| AI Agent 设计 | [`frontend/documents/AGENT_DESIGN.md`](frontend/documents/AGENT_DESIGN.md) |
+| AI 编码约定 | [`AGENTS.md`](AGENTS.md) |
 
-## License
+---
 
-本项目仅用于学习和个人使用。
+<p align="center">
+  <sub>Built with ❤️ by <a href="https://github.com/NoraStory">NoraStory</a></sub><br/>
+  <sub>本项目仅用于学习和个人使用</sub>
+</p>
