@@ -23,6 +23,157 @@ type Result struct {
 var blocked = []string{"os.system(", "subprocess", "child_process", "process.kill", "rm -rf", "Remove-Item", "Invoke-WebRequest", "curl ", "wget ", "socket.", "net.Dial", "unsafe"}
 
 func Run(language, code string) (Result, error) {
+	return runInternal(language, code, "")
+}
+
+func find(names ...string) string {
+	for _, n := range names {
+		if p, e := exec.LookPath(n); e == nil {
+			return p
+		}
+	}
+	return ""
+}
+func limit(s string) string {
+	const n = 65536
+	if len(s) > n {
+		return s[:n] + "\n... output truncated"
+	}
+	return s
+}
+func ValidateSolution(language, code string) (Result, error) {
+	if strings.TrimSpace(code) == "" {
+		return Result{Status: "compile_error", Stderr: "代码不能为空"}, nil
+	}
+	r, e := Run(language, code)
+	if e != nil {
+		return r, e
+	}
+	if r.Status == "success" && strings.TrimSpace(r.Stdout) == "" {
+		r.Stdout = fmt.Sprintf("%s 代码已成功执行。题目用例校验已完成。", language)
+	}
+	return r, nil
+}
+
+func localPython() string {
+	if configured := os.Getenv("CODEFORGE_PYTHON"); configured != "" {
+		return configured
+	}
+	for _, candidate := range []string{filepath.Join(".venv", "Scripts", "python.exe"), filepath.Join(".venv", "bin", "python")} {
+		if path, err := filepath.Abs(candidate); err == nil {
+			if _, err := os.Stat(path); err == nil {
+				return path
+			}
+		}
+	}
+	return find("python", "python3")
+}
+
+// RunWithInput 执行代码并注入 stdin，返回 stdout。
+func RunWithInput(language, code, stdin string) (Result, error) {
+	r, err := runInternal(language, code, stdin)
+	return r, err
+}
+
+// CaseResult 是单条测试用例的验证结果。
+type CaseResult struct {
+	Input    string `json:"input"`
+	Expected string `json:"expected"`
+	Actual   string `json:"actual"`
+	Passed   bool   `json:"passed"`
+	Error    string `json:"error,omitempty"`
+	TimeMS   int64  `json:"time_ms"`
+}
+
+// CaseResults 是多用例验证汇总。
+type CaseResults struct {
+	Status      string       `json:"status"`
+	Results     []CaseResult `json:"case_results"`
+	PassedCount int          `json:"passed_cases"`
+	TotalCount  int          `json:"total_cases"`
+	TimeMS      int64        `json:"execution_time_ms"`
+	MemoryKB    int64        `json:"memory_kb"`
+	Stdout      string       `json:"stdout"`
+	Stderr      string       `json:"stderr,omitempty"`
+}
+
+// TestCase 是单条测试用例。
+type TestCase struct {
+	Input    string `json:"input"`
+	Expected string `json:"expected"`
+}
+
+// ValidateWithCases 用多个测试用例验证代码：对每条用例注入 stdin，
+// 比对 stdout 和 expected（忽略首尾空白），返回逐条结果。
+func ValidateWithCases(language, code string, cases []TestCase) (CaseResults, error) {
+	results := make([]CaseResult, 0, len(cases))
+	totalTime := int64(0)
+	allPassed := true
+	var lastStdout, lastStderr string
+
+	for _, tc := range cases {
+		r, err := runInternal(language, code, tc.Input)
+		if err != nil {
+			results = append(results, CaseResult{
+				Input: tc.Input, Expected: tc.Expected, Actual: "",
+				Passed: false, Error: err.Error(), TimeMS: r.ExecutionTimeMS,
+			})
+			allPassed = false
+			continue
+		}
+		actual := strings.TrimSpace(r.Stdout)
+		expected := strings.TrimSpace(tc.Expected)
+		passed := r.Status == "success" && actual == expected
+		if !passed {
+			allPassed = false
+		}
+		cr := CaseResult{
+			Input: tc.Input, Expected: tc.Expected, Actual: actual,
+			Passed: passed, TimeMS: r.ExecutionTimeMS,
+		}
+		if r.Status != "success" && r.Status != "timeout" {
+			cr.Error = r.Stderr
+		}
+		results = append(results, cr)
+		totalTime += r.ExecutionTimeMS
+		lastStdout = r.Stdout
+		lastStderr = r.Stderr
+	}
+
+	status := "accepted"
+	if !allPassed {
+		status = "wrong_answer"
+	}
+	// 检查是否所有用例都超时/编译失败
+	if len(results) > 0 {
+		allError := true
+		for _, r := range results {
+			if r.Error == "" {
+				allError = false
+				break
+			}
+		}
+		if allError && results[0].Error != "" {
+			if strings.Contains(results[0].Error, "compile") || strings.Contains(results[0].Error, "编译") {
+				status = "compile_error"
+			}
+		}
+	}
+
+	return CaseResults{
+		Status:      status,
+		Results:     results,
+		PassedCount: func() int { c := 0; for _, r := range results { if r.Passed { c++ } }; return c }(),
+		TotalCount:  len(cases),
+		TimeMS:      totalTime,
+		MemoryKB:    0,
+		Stdout:      lastStdout,
+		Stderr:      lastStderr,
+	}, nil
+}
+
+// runInternal 是 Run 的内部实现，支持 stdin 注入。
+func runInternal(language, code, stdin string) (Result, error) {
 	for _, x := range blocked {
 		if strings.Contains(strings.ToLower(code), strings.ToLower(x)) {
 			return Result{Status: "rejected", Stderr: "代码包含沙箱禁止的系统或网络操作"}, nil
@@ -93,6 +244,10 @@ func Run(language, code string) (Result, error) {
 	}
 	cmd.Dir = dir
 	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "PYTHONIOENCODING=utf-8", "NO_PROXY=*"}
+	// 注入 stdin
+	if stdin != "" {
+		cmd.Stdin = strings.NewReader(stdin)
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -106,46 +261,4 @@ func Run(language, code string) (Result, error) {
 		status = "runtime_error"
 	}
 	return Result{Status: status, Stdout: limit(stdout.String()), Stderr: limit(stderr.String()), ExecutionTimeMS: elapsed, MemoryKB: 0}, nil
-}
-func find(names ...string) string {
-	for _, n := range names {
-		if p, e := exec.LookPath(n); e == nil {
-			return p
-		}
-	}
-	return ""
-}
-func limit(s string) string {
-	const n = 65536
-	if len(s) > n {
-		return s[:n] + "\n... output truncated"
-	}
-	return s
-}
-func ValidateSolution(language, code string) (Result, error) {
-	if strings.TrimSpace(code) == "" {
-		return Result{Status: "compile_error", Stderr: "代码不能为空"}, nil
-	}
-	r, e := Run(language, code)
-	if e != nil {
-		return r, e
-	}
-	if r.Status == "success" && strings.TrimSpace(r.Stdout) == "" {
-		r.Stdout = fmt.Sprintf("%s 代码已成功执行。题目用例校验已完成。", language)
-	}
-	return r, nil
-}
-
-func localPython() string {
-	if configured := os.Getenv("CODEFORGE_PYTHON"); configured != "" {
-		return configured
-	}
-	for _, candidate := range []string{filepath.Join(".venv", "Scripts", "python.exe"), filepath.Join(".venv", "bin", "python")} {
-		if path, err := filepath.Abs(candidate); err == nil {
-			if _, err := os.Stat(path); err == nil {
-				return path
-			}
-		}
-	}
-	return find("python", "python3")
 }

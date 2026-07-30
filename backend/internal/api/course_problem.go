@@ -328,44 +328,7 @@ func (s *Server) runCode(c *gin.Context) {
 	success(c, gin.H{"status": result.Status, "test_results": []gin.H{}, "execution_time_ms": result.ExecutionTimeMS, "memory_kb": result.MemoryKB, "stdout": result.Stdout, "stderr": result.Stderr})
 }
 func (s *Server) submitCode(c *gin.Context) {
-	var in codeInput
-	if c.ShouldBindJSON(&in) != nil || in.Language == "" || in.ProblemID == 0 {
-		fail(c, 400, 400, "提交参数无效")
-		return
-	}
-	result, err := sandbox.ValidateSolution(in.Language, in.Code)
-	if err != nil {
-		fail(c, 500, 1003, "沙箱执行失败")
-		return
-	}
-	accepted := result.Status == "success"
-	status := "wrong_answer"
-	passed := 0
-	if accepted {
-		status = "accepted"
-		passed = 3
-	}
-	sub := model.Submission{ID: uuid.NewString(), UserID: userID(c), ProblemID: in.ProblemID, Language: in.Language, Code: in.Code, Status: status, PassedCases: passed, TotalCases: 3, ExecutionTimeMS: result.ExecutionTimeMS, MemoryKB: result.MemoryKB}
-	s.services.DB.Create(&sub)
-	if accepted {
-		s.services.DB.Model(&model.Problem{}).Where("id = ?", in.ProblemID).Update("status", "solved")
-		s.addActivity(userID(c), "problem", "完成了一道算法练习")
-		var prob model.Problem
-		if s.services.DB.Where("id = ?", in.ProblemID).First(&prob).Error == nil {
-			skillName := prob.Title
-			if len(skillName) > 120 {
-				skillName = skillName[:120]
-			}
-			s.recordKnowledgeState(userID(c), skillName, "algorithm", accepted)
-		}
-		s.updateProfileFromActivity(userID(c))
-	}
-	success(c, gin.H{"status": status, "passed_cases": passed, "total_cases": 3, "execution_time_ms": result.ExecutionTimeMS, "memory_kb": result.MemoryKB, "ranking_percentile": func() int {
-		if accepted {
-			return 78
-		}
-		return 0
-	}(), "stdout": result.Stdout, "stderr": result.Stderr})
+	s.submitCodeV2(c)
 }
 func (s *Server) addActivity(uid, kind, text string) {
 	s.services.DB.Create(&model.UserActivity{ID: uuid.NewString(), UserID: uid, Type: kind, Text: text})

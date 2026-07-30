@@ -1,111 +1,148 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
-import { Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, History, Loader2 } from 'lucide-react';
+import Editor from '@monaco-editor/react';
 
-// 模拟题目数据
-const fallbackProblem = {
-  id: 42,
-  title: '两数之和',
-  difficulty: '简单',
-  passRate: '48.5%',
-  submissions: '3,847,291',
-  description: '给定一个整数数组 nums 和一个整数目标值 target，请你在该数组中找出和为目标值 target 的那两个整数，并返回它们的数组下标。',
-  examples: [
-    { input: 'nums = [2,7,11,15], target = 9', output: '[0,1]', explanation: '因为 nums[0] + nums[1] == 9 ，返回 [0, 1] 。' },
-    { input: 'nums = [3,2,4], target = 6', output: '[1,2]', explanation: '' },
-    { input: 'nums = [3,3], target = 6', output: '[0,1]', explanation: '' },
-  ],
-  constraints: ['2 <= nums.length <= 10^4', '-10^9 <= nums[i] <= 10^9', '-10^9 <= target <= 10^9', '只会存在一个有效答案'],
-  tags: ['数组', '哈希表'],
+type Problem = {
+  id: number;
+  title: string;
+  difficulty: string;
+  passRate: number;
+  submissions: number;
+  description: string;
+  examples: { input: string; output: string; explanation?: string }[];
+  constraints: string[];
+  tags: string[];
 };
 
-const fallbackCodeTemplates: Record<string, string> = {
-  rust: `use std::collections::HashMap;
-
-impl Solution {
-    pub fn two_sum(nums: Vec<i32>, target: i32) -> Vec<i32> {
-        let mut map: HashMap<i32, usize> = HashMap::new();
-        
-        for (i, &num) in nums.iter().enumerate() {
-            let complement = target - num;
-            if let Some(&idx) = map.get(&complement) {
-                return vec![idx as i32, i as i32];
-            }
-            map.insert(num, i);
-        }
-        
-        vec![]
-    }
-}`,
-  python: `class Solution:
-    def twoSum(self, nums: List[int], target: int) -> List[int]:
-        seen = {}
-        for i, num in enumerate(nums):
-            complement = target - num
-            if complement in seen:
-                return [seen[complement], i]
-            seen[num] = i
-        return []`,
-  javascript: `/**
- * @param {number[]} nums
- * @param {number} target
- * @return {number[]}
- */
-var twoSum = function(nums, target) {
-    const seen = new Map();
-    for (let i = 0; i < nums.length; i++) {
-        const complement = target - nums[i];
-        if (seen.has(complement)) {
-            return [seen.get(complement), i];
-        }
-        seen.set(nums[i], i);
-    }
-    return [];
-};`,
+type CaseResult = {
+  input: string;
+  expected: string;
+  actual: string;
+  passed: boolean;
+  error?: string;
+  time_ms: number;
 };
+
+type RunResult = {
+  status: string;
+  stdout?: string;
+  stderr?: string;
+  execution_time_ms?: number;
+  memory_kb?: number;
+  passed_cases?: number;
+  total_cases?: number;
+  case_results?: CaseResult[];
+};
+
+type ProblemListItem = {
+  id: number;
+  title: string;
+  difficulty: string;
+  status?: string;
+};
+
+const difficultyColors: Record<string, string> = {
+  easy: 'text-green-500', simple: 'text-green-500', 简单: 'text-green-500',
+  medium: 'text-orange-500', 中等: 'text-orange-500',
+  hard: 'text-red-500', 困难: 'text-red-500',
+};
+
+const languageMap: Record<string, string> = {
+  python: 'python', javascript: 'javascript', cpp: 'cpp', rust: 'rust',
+};
+
+const codeKey = (pid: number, lang: string) => `codeforge_code_${pid}_${lang}`;
 
 export default function PracticePage() {
-  const [language, setLanguage] = useState<'rust' | 'python' | 'javascript'>('python');
-  const [activeTab, setActiveTab] = useState<'result' | 'stdout' | 'info'>('result');
+  const [language, setLanguage] = useState('python');
+  const [activeTab, setActiveTab] = useState<'result' | 'stdout' | 'info' | 'history'>('result');
   const [isFavorite, setIsFavorite] = useState(false);
-  const [problem, setProblem] = useState(fallbackProblem);
-  const [codeTemplates, setCodeTemplates] = useState(fallbackCodeTemplates);
-  const [code, setCode] = useState(fallbackCodeTemplates.python);
-  const [runResult, setRunResult] = useState<{ status: string; stdout?: string; stderr?: string; execution_time_ms?: number; passed_cases?: number; total_cases?: number } | null>(null);
+  const [problem, setProblem] = useState<Problem | null>(null);
+  const [code, setCode] = useState('');
+  const [codeTemplates, setCodeTemplates] = useState<Record<string, string>>({});
+  const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [problemList, setProblemList] = useState<ProblemListItem[]>([]);
+  const [showList, setShowList] = useState(false);
+  const [submissions, setSubmissions] = useState<{ id: string; language: string; status: string; passed_cases: number; total_cases: number; created_at: string }[]>([]);
 
-  useEffect(() => {
-    Promise.all([
-      apiFetch<Record<string, unknown>>('/api/v1/problems/1'),
-      apiFetch<Record<string, string>>('/api/v1/problems/1/templates'),
-    ]).then(([detail, templates]) => {
-      setProblem({
-        ...fallbackProblem, id: Number(detail.id), title: String(detail.title), difficulty: String(detail.difficulty),
-        passRate: String(Number(detail.pass_rate).toFixed(1)) + '%', submissions: Number(detail.submissions).toLocaleString(),
-        description: String(detail.description), examples: detail.examples as typeof fallbackProblem.examples,
-        constraints: detail.constraints as string[], tags: detail.tags as string[],
-      });
-      setCodeTemplates({ ...fallbackCodeTemplates, ...templates });
-      setCode(templates.python || fallbackCodeTemplates.python);
-    }).catch(() => undefined);
+  const loadProblem = useCallback(async (pid: number) => {
+    try {
+      const [detail, templates] = await Promise.all([
+        apiFetch<Record<string, unknown>>(`/api/v1/problems/${pid}`),
+        apiFetch<Record<string, string>>(`/api/v1/problems/${pid}/templates`),
+      ]);
+      const p: Problem = {
+        id: Number(detail.id), title: String(detail.title), difficulty: String(detail.difficulty),
+        passRate: Number(detail.pass_rate), submissions: Number(detail.submissions),
+        description: String(detail.description),
+        examples: detail.examples as Problem['examples'] || [],
+        constraints: detail.constraints as string[] || [],
+        tags: detail.tags as string[] || [],
+      };
+      setProblem(p);
+      const tpls = { ...templates };
+      setCodeTemplates(tpls);
+      // 恢复代码：localStorage 优先，否则模板
+      const saved = typeof window !== 'undefined' ? localStorage.getItem(codeKey(pid, language)) : null;
+      setCode(saved || tpls[language] || '');
+    } catch { /* ignore */ }
+  }, [language]);
+
+  const loadSubmissions = useCallback(async (pid: number) => {
+    try {
+      const data = await apiFetch<{ items: typeof submissions }>(`/api/v1/problems/${pid}/submissions`);
+      setSubmissions(data.items || []);
+    } catch { /* ignore */ }
   }, []);
 
-  const changeLanguage = (next: 'rust' | 'python' | 'javascript') => {
-    setLanguage(next);
-    setCode(codeTemplates[next] || '');
+  useEffect(() => {
+    apiFetch<{ items: ProblemListItem[] }>('/api/v1/problems?page_size=100').then(data => {
+      setProblemList(data.items || []);
+    }).catch(() => undefined);
+    loadProblem(1);
+  }, []);
+
+  useEffect(() => {
+    if (problem) {
+      loadProblem(problem.id);
+      loadSubmissions(problem.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
+
+  const changeLanguage = (lang: string) => {
+    setLanguage(lang);
+    if (problem) {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem(codeKey(problem.id, lang)) : null;
+      setCode(saved || codeTemplates[lang] || '');
+    }
+  };
+
+  const onCodeChange = (val: string | undefined) => {
+    const v = val || '';
+    setCode(v);
+    if (problem && typeof window !== 'undefined') {
+      localStorage.setItem(codeKey(problem.id, language), v);
+    }
   };
 
   const execute = async (submit: boolean) => {
+    if (!problem) return;
     setIsRunning(true);
-    setActiveTab('stdout');
+    setActiveTab(submit ? 'result' : 'stdout');
     try {
-      const result = await apiFetch<NonNullable<typeof runResult>>(submit ? '/api/v1/code/submit' : '/api/v1/code/run', {
+      const result = await apiFetch<RunResult>(submit ? '/api/v1/code/submit' : '/api/v1/code/run', {
         method: 'POST', body: JSON.stringify({ problem_id: problem.id, language, code }),
       });
       setRunResult(result);
-      setActiveTab(submit ? 'info' : 'stdout');
+      if (submit) {
+        setActiveTab('result');
+        loadSubmissions(problem.id);
+      }
     } catch (error) {
       setRunResult({ status: 'error', stderr: error instanceof Error ? error.message : '执行失败' });
     } finally {
@@ -113,176 +150,192 @@ export default function PracticePage() {
     }
   };
 
+  const resetCode = () => {
+    if (problem && codeTemplates[language]) {
+      setCode(codeTemplates[language]);
+      if (typeof window !== 'undefined') localStorage.setItem(codeKey(problem.id, language), codeTemplates[language]);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    if (!problem) return;
+    try {
+      if (isFavorite) {
+        await apiFetch(`/api/v1/favorites/${problem.id}`, { method: 'DELETE' });
+        setIsFavorite(false);
+      } else {
+        await apiFetch('/api/v1/favorites', { method: 'POST', body: JSON.stringify({ course_id: problem.id }) });
+        setIsFavorite(true);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const switchProblem = (pid: number) => {
+    setShowList(false);
+    setRunResult(null);
+    loadProblem(pid);
+    loadSubmissions(pid);
+  };
+
+  const caseResults = runResult?.case_results || [];
+
   return (
     <>
-      {/* 顶部信息栏 */}
-      <div className="px-8 py-4 border-b border-outline/10 flex items-center justify-between">
+      <div className="px-8 py-4 border-b border-border/10 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <button className="p-1 text-muted-foreground hover:text-foreground">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-sm text-muted-foreground">#{problem.id}</span>
-            <h1 className="text-lg font-bold text-foreground">{problem.title}</h1>
-          </div>
-          <span className="px-2 py-0.5 bg-green-500/10 text-green-600 text-xs font-medium rounded-sm">
-            {problem.difficulty}
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground">通过率 {problem.passRate}</span>
-          <span className="text-sm text-muted-foreground">提交 {problem.submissions} 次</span>
-          <button
-            onClick={() => setIsFavorite(!isFavorite)}
-            className={`p-1 ${isFavorite ? 'text-destructive' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+          <button onClick={() => setShowList(!showList)} className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-container rounded transition-colors">
+            题目列表
           </button>
-          <button className="p-1 text-muted-foreground hover:text-foreground">
-            <ChevronRight className="w-4 h-4" />
+          <button className="p-1 text-muted-foreground hover:text-foreground" onClick={() => { const prev = problemList.find(p => p.id < (problem?.id || 0)); if (prev) switchProblem(prev.id); }} disabled={!problemList.some(p => p.id < (problem?.id || 0))}>
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <span className="text-sm font-medium text-foreground">{problem?.id}. {problem?.title}</span>
+          <button className="p-1 text-muted-foreground hover:text-foreground" onClick={() => { const next = problemList.find(p => p.id > (problem?.id || 0)); if (next) switchProblem(next.id); }} disabled={!problemList.some(p => p.id > (problem?.id || 0))}>
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex items-center gap-3">
+          {problem && <span className={`text-xs font-medium ${difficultyColors[problem.difficulty.toLowerCase()] || 'text-muted-foreground'}`}>{problem.difficulty}</span>}
+          <button onClick={toggleFavorite} className="p-1 text-muted-foreground hover:text-red-500">
+            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
           </button>
         </div>
       </div>
 
-      {/* 主内容区 */}
-      <div className="flex h-[calc(100vh-140px)]">
-        {/* 左侧：题目描述 */}
-        <div className="w-[40%] border-r border-outline/10 overflow-y-auto p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">题目描述</h2>
-          <p className="text-sm text-foreground leading-relaxed mb-6">
-            {problem.description}
-          </p>
-
-          <h3 className="text-sm font-semibold text-foreground mb-3">示例</h3>
-          <div className="space-y-4 mb-6">
-            {problem.examples.map((ex, idx) => (
-              <div key={idx} className="text-sm">
-                <p className="text-muted-foreground mb-1">
-                  <strong>输入：</strong>{ex.input}
-                </p>
-                <p className="text-muted-foreground">
-                  <strong>输出：</strong>{ex.output}
-                </p>
-                {ex.explanation && (
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    解释：{ex.explanation}
-                  </p>
-                )}
+      {/* 题目列表抽屉 */}
+      {showList && (
+        <div className="absolute z-40 left-0 top-16 w-80 max-h-[60vh] overflow-y-auto bg-surface border border-border rounded-r-xl shadow-xl">
+          {problemList.map(p => (
+            <div key={p.id} onClick={() => switchProblem(p.id)} className={`px-4 py-3 cursor-pointer border-b border-border/50 hover:bg-surface-container ${p.id === problem?.id ? 'bg-primary/10' : ''}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground">{p.id}. {p.title}</span>
+                {p.status === 'solved' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
               </div>
-            ))}
-          </div>
+              <span className={`text-xs ${difficultyColors[p.difficulty?.toLowerCase()] || 'text-muted-foreground'}`}>{p.difficulty}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
-          <h3 className="text-sm font-semibold text-foreground mb-3">约束条件</h3>
-          <ul className="text-sm text-muted-foreground space-y-1 mb-6">
-            {problem.constraints.map((c, idx) => (
-              <li key={idx} className="flex items-start gap-2">
-                <span className="text-primary mt-1">•</span>
-                <code className="text-xs bg-surface-container px-1.5 py-0.5 rounded">{c}</code>
-              </li>
-            ))}
-          </ul>
-
-          <div className="flex flex-wrap gap-2">
-            {problem.tags.map((tag) => (
-              <span
-                key={tag}
-                className="text-xs text-muted-foreground bg-surface-container px-2.5 py-1 rounded-sm"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
+      <div className="flex h-[calc(100vh-8rem)]">
+        {/* 左侧题目描述 */}
+        <div className="w-[40%] overflow-y-auto p-6 border-r border-border/10">
+          {problem && (
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                <span className={`px-2 py-0.5 text-xs rounded ${difficultyColors[problem.difficulty.toLowerCase()] || 'text-muted-foreground'} bg-surface-container`}>{problem.difficulty}</span>
+                <span className="text-xs text-muted-foreground">通过率 {(problem.passRate * 100).toFixed(1)}%</span>
+                <span className="text-xs text-muted-foreground">提交 {problem.submissions.toLocaleString()}</span>
+              </div>
+              {problem.tags?.map((tag, i) => (
+                <span key={i} className="mr-2 mb-2 inline-block px-2 py-0.5 text-xs bg-primary/10 text-primary rounded">{tag}</span>
+              ))}
+              <div className="mt-4 text-sm text-foreground leading-relaxed whitespace-pre-wrap">{problem.description}</div>
+              {problem.examples?.map((ex, i) => (
+                <div key={i} className="mt-4 p-4 bg-surface-container rounded-lg">
+                  <div className="text-xs font-medium text-muted-foreground mb-2">示例 {i + 1}</div>
+                  <div className="text-xs text-foreground"><span className="text-muted-foreground">输入：</span>{ex.input}</div>
+                  <div className="text-xs text-foreground mt-1"><span className="text-muted-foreground">输出：</span>{ex.output}</div>
+                  {ex.explanation && <div className="text-xs text-muted-foreground mt-1">{ex.explanation}</div>}
+                </div>
+              ))}
+              {problem.constraints?.length > 0 && (
+                <div className="mt-4">
+                  <div className="text-xs font-medium text-muted-foreground mb-2">约束</div>
+                  {problem.constraints.map((c, i) => <div key={i} className="text-xs text-muted-foreground">• {c}</div>)}
+                </div>
+              )}
+            </>
+          )}
         </div>
 
-        {/* 右侧：代码编辑器 */}
+        {/* 右侧编辑器 + 输出 */}
         <div className="flex-1 flex flex-col">
-          {/* 编辑器工具栏 */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-outline/10">
-            <select
-              value={language}
-              onChange={(e) => changeLanguage(e.target.value as 'rust' | 'python' | 'javascript')}
-              className="text-sm border border-outline rounded px-2 py-1 bg-surface text-foreground"
-            >
-              <option value="rust">Rust</option>
+          <div className="flex items-center justify-between px-4 py-2 border-b border-border/10">
+            <select value={language} onChange={(e) => changeLanguage(e.target.value)} className="text-sm border border-border rounded px-2 py-1 bg-surface text-foreground">
               <option value="python">Python</option>
               <option value="javascript">JavaScript</option>
+              <option value="cpp">C++</option>
+              <option value="rust">Rust</option>
             </select>
             <div className="flex items-center gap-2">
-              <button onClick={() => setCode(codeTemplates[language] || '')} className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-container rounded transition-colors">
-                重置
-              </button>
+              <button onClick={resetCode} className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-container rounded transition-colors">重置</button>
               <button disabled={isRunning} onClick={() => execute(false)} className="px-3 py-1.5 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded transition-colors disabled:opacity-50">
                 {isRunning ? '运行中...' : '运行代码'}
               </button>
-              <button disabled={isRunning} onClick={() => execute(true)} className="px-3 py-1.5 text-xs font-medium text-on-primary bg-primary hover:bg-primary/90 rounded transition-colors disabled:opacity-50">
-                提交答案
-              </button>
+              <button disabled={isRunning} onClick={() => execute(true)} className="px-3 py-1.5 text-xs font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded transition-colors disabled:opacity-50">提交答案</button>
             </div>
           </div>
 
-          {/* 代码区域 */}
-          <div className="flex-1 bg-[#1e1e2e] overflow-auto p-4">
-            <textarea
+          {/* Monaco 编辑器 */}
+          <div className="flex-1" style={{ minHeight: '300px' }}>
+            <Editor
+              language={languageMap[language] || 'plaintext'}
               value={code}
-              onChange={(event) => setCode(event.target.value)}
-              spellCheck={false}
-              className="w-full h-full resize-none bg-transparent outline-none text-sm font-mono leading-relaxed text-[#cdd6f4]"
+              onChange={onCodeChange}
+              theme="vs-dark"
+              options={{
+                fontSize: 14, minimap: { enabled: false }, scrollBeyondLastLine: false,
+                wordWrap: 'on', tabSize: 4, automaticLayout: true,
+              }}
             />
           </div>
 
           {/* 输出区域 */}
-          <div className="h-48 border-t border-outline/10">
-            <div className="flex border-b border-outline/10">
+          <div className="h-56 border-t border-border/10 flex flex-col">
+            <div className="flex border-b border-border/10">
               {[
-                { key: 'result', label: '测试结果' },
-                { key: 'stdout', label: 'stdout' },
-                { key: 'info', label: '执行结果' },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as 'result' | 'stdout' | 'info')}
-                  className={`px-4 py-2 text-xs font-medium transition-colors ${
-                    activeTab === tab.key
-                      ? 'text-primary border-b-2 border-primary'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+                { key: 'result', label: '测试结果', icon: runResult?.case_results?.length ? CheckCircle2 : null },
+                { key: 'stdout', label: '输出' },
+                { key: 'info', label: '执行详情' },
+                { key: 'history', label: '提交历史' },
+              ].map(tab => {
+                const Icon = tab.icon as React.ComponentType<{ className?: string }> | null;
+                return (
+                  <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)} className={`px-4 py-2 text-xs font-medium transition-colors flex items-center gap-1 ${activeTab === tab.key ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                    {Icon && <Icon className="w-3 h-3" />}{tab.label}
+                  </button>
+                );
+              })}
             </div>
-            <div className="p-4 overflow-auto h-[calc(100%-36px)]">
+            <div className="flex-1 overflow-auto p-4">
               {activeTab === 'result' && (
                 <div className="space-y-2 text-sm">
-                  {[
-                    { input: '[2,7,11,15], 9', expected: '[0,1]', actual: '[0,1]', pass: true },
-                    { input: '[3,2,4], 6', expected: '[1,2]', actual: '[1,2]', pass: true },
-                    { input: '[3,3], 6', expected: '[0,1]', actual: '[0,1]', pass: true },
-                  ].map((tc, idx) => (
-                    <div key={idx} className="flex items-center gap-3">
-                      <span className={tc.pass ? 'text-success' : 'text-destructive'}>
-                        {tc.pass ? '✓' : '✗'}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        输入: {tc.input}
-                      </span>
-                      <span className="text-xs">
-                        输出: {tc.actual}
-                      </span>
+                  {caseResults.length > 0 ? caseResults.map((tc, idx) => (
+                    <div key={idx} className={`flex items-start gap-3 p-2 rounded ${tc.passed ? 'bg-green-500/5' : 'bg-red-500/5'}`}>
+                      {tc.passed ? <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" /> : <XCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-muted-foreground">输入: {tc.input}</div>
+                        <div className="text-xs text-foreground">期望: {tc.expected}</div>
+                        <div className={`text-xs ${tc.passed ? 'text-green-600' : 'text-red-600'}`}>实际: {tc.actual || '(空)'}</div>
+                        {tc.error && <div className="text-xs text-red-500 mt-1">错误: {tc.error}</div>}
+                        <div className="text-[10px] text-muted-foreground mt-0.5"><Clock className="w-3 h-3 inline" /> {tc.time_ms}ms</div>
+                      </div>
                     </div>
-                  ))}
+                  )) : <div className="text-muted-foreground text-xs">提交代码后查看逐条测试结果</div>}
                 </div>
               )}
               {activeTab === 'stdout' && (
-                <pre className="text-xs text-muted-foreground font-mono">
-                  {runResult?.stdout || runResult?.stderr || '点击运行代码查看输出。'}
-                </pre>
+                <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap">{runResult?.stdout || runResult?.stderr || '点击运行代码查看输出。'}</pre>
               )}
               {activeTab === 'info' && (
                 <div className="space-y-2 text-sm">
-                  <p className={runResult?.status === 'accepted' || runResult?.status === 'success' ? 'text-success font-medium' : 'text-destructive font-medium'}>{runResult ? `状态：${runResult.status}` : '尚未提交'}</p>
-                  <p className="text-muted-foreground text-xs">执行时间: {runResult?.execution_time_ms ?? 0}ms</p>
-                  <p className="text-muted-foreground text-xs">通过用例: {runResult?.passed_cases ?? 0}/{runResult?.total_cases ?? 0}</p>
+                  <p className={`${runResult?.status === 'accepted' || runResult?.status === 'success' ? 'text-green-500 font-medium' : 'text-red-500 font-medium'}`}>{runResult ? `状态：${runResult.status}` : '尚未提交'}</p>
+                  {runResult?.execution_time_ms !== undefined && <p className="text-muted-foreground text-xs">执行时间: {runResult.execution_time_ms}ms</p>}
+                  {runResult?.passed_cases !== undefined && <p className="text-muted-foreground text-xs">通过用例: {runResult.passed_cases}/{runResult.total_cases}</p>}
+                </div>
+              )}
+              {activeTab === 'history' && (
+                <div className="space-y-1 text-sm">
+                  {submissions.length > 0 ? submissions.map((sub) => (
+                    <div key={sub.id} className="flex items-center gap-3 p-2 bg-surface-container rounded">
+                      {sub.status === 'accepted' ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
+                      <span className="text-xs text-foreground">{sub.language}</span>
+                      <span className={`text-xs ${sub.status === 'accepted' ? 'text-green-500' : 'text-red-500'}`}>{sub.status}</span>
+                      <span className="text-xs text-muted-foreground">{sub.passed_cases}/{sub.total_cases}</span>
+                      <span className="text-xs text-muted-foreground ml-auto">{new Date(sub.created_at).toLocaleString('zh-CN')}</span>
+                    </div>
+                  )) : <div className="text-muted-foreground text-xs">暂无提交记录</div>}
                 </div>
               )}
             </div>
