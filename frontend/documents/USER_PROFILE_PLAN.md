@@ -395,3 +395,12 @@ POST /api/v1/agent/profile/analyze   # AI 分析对话历史，自动更新画�
 - `backend/internal/api/server.go` — 注册新路由
 - `frontend/src/app/agent/profile/page.tsx` — 全面重写
 - `frontend/documents/API_SPEC.md` — 新增画像接口文档
+
+### 修复记录
+
+- **2026-07-31**: 修复用户画像页面无限转圈问题
+  - 根因：`Promise.all` 中任一请求失败会阻塞全部，`catch(() => undefined)` 吞掉错误
+  - 修复：三个 API 请求改为独立发起，互不阻塞
+  - 新增 8 秒超时（`withTimeout`），避免网络问题导致永久等待
+  - loading 状态分阶段：首次加载显示 spinner，失败显示重试按钮
+  - 已有数据时后台继续加载，显示加载提示条
