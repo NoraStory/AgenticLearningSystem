@@ -67,16 +67,30 @@ export default function AgentProfilePage() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ learning_style: '', preferred_difficulty: '', preferred_time_slot: '', daily_goal: 30, focus_areas: '', weak_areas: '' });
 
+  const [loading, setLoading] = useState(true);
+
   const loadData = useCallback(() => {
-    Promise.all([
-      apiFetch<Profile>('/api/v1/agent/profile'),
-      apiFetch<{ items: KnowledgeState[] }>('/api/v1/agent/knowledge-states'),
-      apiFetch<Dashboard>('/api/v1/agent/dashboard'),
-    ]).then(([p, ks, d]) => {
-      setProfile(p);
-      setKnowledgeStates(ks.items || []);
-      setDashboard(d);
-    }).catch(() => undefined);
+    setLoading(true);
+    const withTimeout = <T,>(p: Promise<T>, ms = 8000): Promise<T> =>
+      Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+
+    let done = 0;
+    const onDone = () => { done++; if (done >= 3) setLoading(false); };
+
+    withTimeout(apiFetch<Profile>('/api/v1/agent/profile'))
+      .then(p => setProfile(p))
+      .catch(() => undefined)
+      .finally(onDone);
+
+    withTimeout(apiFetch<{ items: KnowledgeState[] }>('/api/v1/agent/knowledge-states'))
+      .then(ks => setKnowledgeStates(ks.items || []))
+      .catch(() => undefined)
+      .finally(onDone);
+
+    withTimeout(apiFetch<Dashboard>('/api/v1/agent/dashboard'))
+      .then(d => setDashboard(d))
+      .catch(() => undefined)
+      .finally(onDone);
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -110,8 +124,22 @@ export default function AgentProfilePage() {
     loadData();
   };
 
+  if (loading && !profile) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 gap-4">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+        <div className="text-sm text-muted-foreground">正在加载学习画像...</div>
+      </div>
+    );
+  }
+
   if (!profile) {
-    return <div className="flex items-center justify-center h-96"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+    return (
+      <div className="flex flex-col items-center justify-center h-96 gap-4">
+        <div className="text-sm text-muted-foreground">无法加载画像数据</div>
+        <button onClick={loadData} className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90">重新加载</button>
+      </div>
+    );
   }
 
   // 知识图谱节点：按 category 分组，取 mastery 最高的几个
@@ -119,6 +147,12 @@ export default function AgentProfilePage() {
 
   return (
     <div className="max-w-6xl mx-auto pb-8">
+      {loading && profile && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2 bg-primary/5 border border-primary/10 rounded-lg">
+          <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />
+          <span className="text-xs text-muted-foreground">正在加载更多数据...</span>
+        </div>
+      )}
       {/* 页面标题 */}
       <div className="flex items-center justify-between mb-8">
         <div>
