@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/jquery/jquery-3.7.1.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/lucide/lucide-1.11.0.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/tailwindcss/tailwindcss-browser-4.2.4.min.js"></script>
+
+  <style type="text/tailwindcss">
+    @theme {
+      /* === 品牌色 === */
+      --color-primary:              #2563EB;
+      --color-primary-container:    #DBEAFE;
+      --color-on-primary:           #ffffff;
+      /* === 背景 / 表面 === */
+      --color-background:                 #FFFFFF;
+      --color-surface-container-lowest:   #FAFAFA;
+      --color-surface:                    #FFFFFF;
+      --color-surface-container:          #F4F4F5;
+      --color-surface-container-high:     #E4E4E7;
+      --color-surface-container-highest:  #D4D4D8;
+      /* === 文字 === */
+      --color-on-surface:           #18181B;
+      --color-on-surface-variant:   #71717A;
+      /* === 功能色 === */
+      --color-success:  #22c55e;
+      --color-error:    #ef4444;
+      --color-warning:  #f59e0b;
+      /* === 边框 === */
+      --color-outline:          #E4E4E7;
+      --color-outline-variant:  #F4F4F5;
+      /* === 圆角 === */
+      --radius-sm:   0.375rem;
+      --radius-md:   0.5rem;
+      --radius-lg:   0.75rem;
+      --radius-xl:   1rem;
+      --radius-2xl:  1.5rem;
+      --radius-full: 9999px;
+      /* === 阴影 === */
+      --shadow-card:   0 2px 8px rgba(0,0,0,0.08);
+      --shadow-float:  0 10px 25px rgba(0,0,0,0.10);
+      --shadow-dialog: 0 25px 50px rgba(0,0,0,0.12);
+      /* === 字体 === */
+      --font-sans: "Inter", "Noto Sans SC", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+    }
+  </style>
+
+  <!-- 图片兜底 -->
+  <script>
+    document.addEventListener('error', function (e) {
+      const img = e.target;
+      if (img.tagName !== 'IMG' || img.dataset.fallback) return;
+      img.dataset.fallback = '1';
+      const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const cat = img.getAttribute('data-category') || '其他';
+      const alt = img.getAttribute('alt') || '';
+      const label = esc(alt.length > 8 ? alt.slice(0, 8) + '…' : alt);
+      const icons = { '人物': '👤', '自然风景': '🏞', '动物': '🐾', '建筑城市': '🏙', '运动体育': '⚽', '交通工具': '🚗', '食物': '🍽', '服饰时尚': '👗', '商业科技': '💼', '游戏娱乐': '🎮', '艺术': '🎨', '其他': '🖼' };
+      const icon = icons[cat] || '🖼';
+      const w = img.width || 400, h = img.height || 300;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="45%" text-anchor="middle" font-size="${Math.min(w, h) * 0.18}" dominant-baseline="central">${icon}</text><text x="50%" y="68%" text-anchor="middle" font-size="${Math.min(w, h) * 0.07}" fill="%239ca3af" font-family="system-ui,sans-serif" dominant-baseline="central">${label}</text></svg>`;
+      img.src = 'data:image/svg+xml,' + svg;
+    }, true);
+  </script>
+</head>
+
+<body class="bg-background text-on-surface font-sans">
+
+  <!-- @nav:start 导航组件，不需要的页面则不要复制此段（从 @nav:start 到 @nav:end） -->
+  <header class="bg-surface/80 backdrop-blur-sm sticky top-0 z-40 h-14 flex items-center justify-between px-6 border-b border-outline/20">
+    <a href="home.html" class="flex items-center gap-2.5">
+      <i data-lucide="braces" class="text-primary w-5 h-5"></i>
+      <span class="font-bold text-lg text-on-surface">CodeForge</span>
+      <span class="text-[10px] text-on-primary bg-primary px-1.5 py-0.5 rounded-sm font-medium">Academy</span>
+    </a>
+    <nav class="flex items-center gap-1">
+      <a href="home.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">首页</a>
+      <a href="rust.html" class="px-3 py-1.5 text-sm text-primary bg-primary/10 rounded-md font-medium transition-colors" aria-current="page">Rust</a>
+      <a href="algorithm.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">算法</a>
+      <a href="agent.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">Agent</a>
+      <a href="practice.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">练习</a>
+      <a href="learning-path.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">路径</a>
+    </nav>
+    <div class="flex items-center gap-3">
+      <button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+        <i data-lucide="search" class="w-4 h-4"></i>
+      </button>
+      <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary cursor-pointer hover:bg-primary/20 transition-colors">初</div>
+    </div>
+  </header>
+  <div class="flex" style="height: calc(100vh - 3.5rem)">
+    <aside class="w-52 shrink-0 bg-surface-container-lowest/50 border-r border-outline/10 overflow-y-auto">
+      <nav class="p-3 space-y-1">
+        <a href="home.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="home" class="w-4 h-4"></i>首页
+        </a>
+        <a href="rust.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md bg-primary/10 text-primary font-medium text-sm" aria-current="page">
+          <i data-lucide="cog" class="w-4 h-4"></i>Rust 编程
+        </a>
+        <a href="algorithm.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="binary" class="w-4 h-4"></i>数据结构与算法
+        </a>
+        <a href="agent.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="bot" class="w-4 h-4"></i>AI Agent
+        </a>
+        <div class="my-2 mx-3 border-t border-outline/10"></div>
+        <a href="practice.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="terminal" class="w-4 h-4"></i>在线练习
+        </a>
+        <a href="learning-path.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="map" class="w-4 h-4"></i>学习路径
+        </a>
+        <a href="profile.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="user" class="w-4 h-4"></i>个人中心
+        </a>
+      </nav>
+      <!-- 小板报：学习日历 -->
+      <div class="mx-3 mt-4 p-3 bg-surface rounded-lg border border-outline/10">
+        <div class="text-xs font-medium text-on-surface-variant mb-2">学习小板报</div>
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between"><span class="text-on-surface-variant">今日</span><span class="text-primary font-medium">已学 45 分钟</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本周</span><span class="text-on-surface">5/7 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本月</span><span class="text-on-surface">18/30 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">连续打卡</span><span class="text-error font-medium">15 天</span></div>
+        </div>
+      </div>
+    </aside>
+  <!-- @nav:end 导航组件，不需要的页面则不要复制此段 -->
+
+  <!-- @main-content:start -->
+  <main class="flex-1 min-w-0 overflow-y-auto bg-background">
+    <div class="p-8">
+
+      <!-- 页面标题区 -->
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-8 h-0.5 bg-primary rounded-full"></div>
+          <span class="font-mono text-xs font-medium text-primary tracking-wider uppercase">Rust Programming</span>
+        </div>
+        <h1 class="text-2xl font-bold text-on-surface">Rust 编程学习</h1>
+        <p class="text-sm text-on-surface-variant mt-2 leading-relaxed max-w-2xl">从零基础到系统级编程，全面掌握 Rust 语言核心概念与实践技巧。共 6 个章节，由浅入深带你构建安全、高效的程序。</p>
+      </div>
+
+      <!-- 筛选栏 -->
+      <div id="filter-bar" class="flex items-center gap-4 mb-8 flex-wrap">
+        <div class="flex items-center gap-1.5" id="difficulty-filter">
+          <button id="filter-all" class="px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-on-primary transition-colors" data-filter="all">全部</button>
+          <button id="filter-beginner" class="px-3 py-1.5 rounded-md text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors" data-filter="beginner">入门</button>
+          <button id="filter-intermediate" class="px-3 py-1.5 rounded-md text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors" data-filter="intermediate">进阶</button>
+          <button id="filter-advanced" class="px-3 py-1.5 rounded-md text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors" data-filter="advanced">高级</button>
+        </div>
+        <div class="w-px h-5 bg-outline/30"></div>
+        <select id="status-filter" class="bg-surface-container border-none rounded-md px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors cursor-pointer">
+          <option value="all">全部状态</option>
+          <option value="completed">已完成</option>
+          <option value="in-progress">进行中</option>
+          <option value="not-started">未开始</option>
+        </select>
+        <div class="ml-auto">
+          <span id="result-count" class="text-xs text-on-surface-variant">共 6 个章节</span>
+        </div>
+      </div>
+
+      <!-- 内容区域：博客列表 + 右侧边栏 -->
+      <div class="flex gap-8">
+
+        <!-- 博客文章列表 -->
+        <div id="course-list" class="flex-1 space-y-6">
+
+          <!-- 列表-课程1：Rust 环境搭建与第一个程序 -->
+          <article id="card-1" class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-all duration-300 cursor-pointer group" data-difficulty="beginner" data-status="completed" data-id="1">
+            <div class="relative overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&h=400&fit=crop" alt="电脑屏幕上显示的代码编辑器界面" data-category="商业科技" class="w-full h-52 object-cover group-hover:scale-[1.02] transition-transform duration-500">
+              <div class="absolute top-3 left-3">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-success/15 text-success backdrop-blur-sm">入门</span>
+              </div>
+              <div class="absolute top-3 right-3">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-surface/90 backdrop-blur-sm text-success">
+                  <i data-lucide="check-circle-2" class="w-3 h-3"></i>已完成
+                </span>
+              </div>
+              <div class="absolute bottom-3 left-3">
+                <span class="font-mono text-[11px] font-medium text-on-primary bg-primary/80 backdrop-blur-sm px-2 py-0.5 rounded-sm">CH.01</span>
+              </div>
+            </div>
+            <div class="p-5">
+              <time class="text-xs text-on-surface-variant">2024-12-01</time>
+              <h3 class="text-lg font-bold text-on-surface mt-1.5 mb-2 group-hover:text-primary transition-colors">第一章：Rust 环境搭建与第一个程序</h3>
+              <p class="text-sm text-on-surface-variant leading-relaxed mb-4">从 rustup 安装开始，配置你的开发环境，编写并运行第一个 Hello World 程序。了解 Cargo 包管理器的基本使用方法和项目目录结构，为后续学习打下基础。</p>
+              <div class="flex items-center justify-between">
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">环境搭建</span>
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">Cargo</span>
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">Hello World</span>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-on-surface-variant/40 group-hover:text-primary group-hover:translate-x-1 transition-all"></i>
+              </div>
+            </div>
+          </article>
+
+          <!-- 列表-课程2：变量、数据类型与基本运算 -->
+          <article id="card-2" class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-all duration-300 cursor-pointer group" data-difficulty="beginner" data-status="completed" data-id="2">
+            <div class="relative overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&h=400&fit=crop" alt="IDE中正在编写的源代码特写" data-category="商业科技" class="w-full h-52 object-cover group-hover:scale-[1.02] transition-transform duration-500">
+              <div class="absolute top-3 left-3">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-success/15 text-success backdrop-blur-sm">入门</span>
+              </div>
+              <div class="absolute top-3 right-3">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-surface/90 backdrop-blur-sm text-success">
+                  <i data-lucide="check-circle-2" class="w-3 h-3"></i>已完成
+                </span>
+              </div>
+              <div class="absolute bottom-3 left-3">
+                <span class="font-mono text-[11px] font-medium text-on-primary bg-primary/80 backdrop-blur-sm px-2 py-0.5 rounded-sm">CH.02</span>
+              </div>
+            </div>
+            <div class="p-5">
+              <time class="text-xs text-on-surface-variant">2024-12-05</time>
+              <h3 class="text-lg font-bold text-on-surface mt-1.5 mb-2 group-hover:text-primary transition-colors">第二章：变量、数据类型与基本运算</h3>
+              <p class="text-sm text-on-surface-variant leading-relaxed mb-4">深入理解 Rust 的变量绑定与可变性规则，掌握整数、浮点数、布尔值、字符等基本数据类型，学习类型推断与类型注解的写法，以及常用运算符的使用。</p>
+              <div class="flex items-center justify-between">
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">变量</span>
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">数据类型</span>
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">运算符</span>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-on-surface-variant/40 group-hover:text-primary group-hover:translate-x-1 transition-all"></i>
+              </div>
+            </div>
+          </article>
+
+          <!-- 列表-课程3：所有权与借用机制详解 -->
+          <article id="card-3" class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-all duration-300 cursor-pointer group" data-difficulty="intermediate" data-status="in-progress" data-id="3">
+            <div class="relative overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1558494949-ef010cbd3154?w=800&h=400&fit=crop" alt="服务器机房中排列整齐的服务器" data-category="商业科技" class="w-full h-52 object-cover group-hover:scale-[1.02] transition-transform duration-500">
+              <div class="absolute top-3 left-3">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-warning/15 text-warning backdrop-blur-sm">进阶</span>
+              </div>
+              <div class="absolute top-3 right-3">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-surface/90 backdrop-blur-sm text-primary">
+                  <i data-lucide="clock" class="w-3 h-3"></i>进行中
+                </span>
+              </div>
+              <div class="absolute bottom-3 left-3">
+                <span class="font-mono text-[11px] font-medium text-on-primary bg-primary/80 backdrop-blur-sm px-2 py-0.5 rounded-sm">CH.03</span>
+              </div>
+            </div>
+            <div class="p-5">
+              <time class="text-xs text-on-surface-variant">2024-12-10</time>
+              <h3 class="text-lg font-bold text-on-surface mt-1.5 mb-2 group-hover:text-primary transition-colors">第三章：所有权与借用机制详解</h3>
+              <p class="text-sm text-on-surface-variant leading-relaxed mb-4">Rust 最核心的内存安全机制——所有权系统。理解 move 语义、Copy trait、引用与借用规则，掌握生命周期标注的基本语法，彻底搞懂编译器为何如此严格。</p>
+              <div class="flex items-center justify-between">
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">所有权</span>
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">借用</span>
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">生命周期</span>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-on-surface-variant/40 group-hover:text-primary group-hover:translate-x-1 transition-all"></i>
+              </div>
+            </div>
+          </article>
+
+          <!-- 列表-课程4：枚举、模式匹配与错误处理 -->
+          <article id="card-4" class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-all duration-300 cursor-pointer group" data-difficulty="intermediate" data-status="not-started" data-id="4">
+            <div class="relative overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=800&h=400&fit=crop" alt="简约风格的编程工作桌面" data-category="商业科技" class="w-full h-52 object-cover group-hover:scale-[1.02] transition-transform duration-500">
+              <div class="absolute top-3 left-3">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-warning/15 text-warning backdrop-blur-sm">进阶</span>
+              </div>
+              <div class="absolute top-3 right-3">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-surface/90 backdrop-blur-sm text-on-surface-variant">
+                  <i data-lucide="circle" class="w-3 h-3"></i>未开始
+                </span>
+              </div>
+              <div class="absolute bottom-3 left-3">
+                <span class="font-mono text-[11px] font-medium text-on-primary bg-primary/80 backdrop-blur-sm px-2 py-0.5 rounded-sm">CH.04</span>
+              </div>
+            </div>
+            <div class="p-5">
+              <time class="text-xs text-on-surface-variant">2024-12-15</time>
+              <h3 class="text-lg font-bold text-on-surface mt-1.5 mb-2 group-hover:text-primary transition-colors">第四章：枚举、模式匹配与错误处理</h3>
+              <p class="text-sm text-on-surface-variant leading-relaxed mb-4">学习 Rust 强大的枚举类型与 match 表达式，掌握 if let 与 while let 简写语法。深入 Option 与 Result 类型，构建健壮的错误处理流程，告别空指针异常。</p>
+              <div class="flex items-center justify-between">
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">枚举</span>
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">模式匹配</span>
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">Result</span>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-on-surface-variant/40 group-hover:text-primary group-hover:translate-x-1 transition-all"></i>
+              </div>
+            </div>
+          </article>
+
+          <!-- 列表-课程5：Trait 与泛型编程 -->
+          <article id="card-5" class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-all duration-300 cursor-pointer group" data-difficulty="advanced" data-status="not-started" data-id="5">
+            <div class="relative overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&h=400&fit=crop" alt="笔记本电脑上编写的代码" data-category="商业科技" class="w-full h-52 object-cover group-hover:scale-[1.02] transition-transform duration-500">
+              <div class="absolute top-3 left-3">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-error/15 text-error backdrop-blur-sm">高级</span>
+              </div>
+              <div class="absolute top-3 right-3">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-surface/90 backdrop-blur-sm text-on-surface-variant">
+                  <i data-lucide="circle" class="w-3 h-3"></i>未开始
+                </span>
+              </div>
+              <div class="absolute bottom-3 left-3">
+                <span class="font-mono text-[11px] font-medium text-on-primary bg-primary/80 backdrop-blur-sm px-2 py-0.5 rounded-sm">CH.05</span>
+              </div>
+            </div>
+            <div class="p-5">
+              <time class="text-xs text-on-surface-variant">2024-12-20</time>
+              <h3 class="text-lg font-bold text-on-surface mt-1.5 mb-2 group-hover:text-primary transition-colors">第五章：Trait 与泛型编程</h3>
+              <p class="text-sm text-on-surface-variant leading-relaxed mb-4">掌握 Rust 的抽象机制——Trait 定义与实现，学习泛型函数与泛型结构体的编写。理解 Trait Bound、where 子句与动态分发，编写高复用性的代码。</p>
+              <div class="flex items-center justify-between">
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">Trait</span>
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">泛型</span>
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">类型系统</span>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-on-surface-variant/40 group-hover:text-primary group-hover:translate-x-1 transition-all"></i>
+              </div>
+            </div>
+          </article>
+
+          <!-- 列表-课程6：并发编程与异步 Rust -->
+          <article id="card-6" class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-all duration-300 cursor-pointer group" data-difficulty="advanced" data-status="not-started" data-id="6">
+            <div class="relative overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&h=400&fit=crop" alt="团队成员协作讨论技术方案" data-category="商业科技" class="w-full h-52 object-cover group-hover:scale-[1.02] transition-transform duration-500">
+              <div class="absolute top-3 left-3">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-error/15 text-error backdrop-blur-sm">高级</span>
+              </div>
+              <div class="absolute top-3 right-3">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-surface/90 backdrop-blur-sm text-on-surface-variant">
+                  <i data-lucide="circle" class="w-3 h-3"></i>未开始
+                </span>
+              </div>
+              <div class="absolute bottom-3 left-3">
+                <span class="font-mono text-[11px] font-medium text-on-primary bg-primary/80 backdrop-blur-sm px-2 py-0.5 rounded-sm">CH.06</span>
+              </div>
+            </div>
+            <div class="p-5">
+              <time class="text-xs text-on-surface-variant">2024-12-25</time>
+              <h3 class="text-lg font-bold text-on-surface mt-1.5 mb-2 group-hover:text-primary transition-colors">第六章：并发编程与异步 Rust</h3>
+              <p class="text-sm text-on-surface-variant leading-relaxed mb-4">探索 Rust 无畏并发模型，学习线程创建、消息传递与共享状态。深入 async/await 语法与 Future trait，使用 tokio 运行时构建高性能异步应用。</p>
+              <div class="flex items-center justify-between">
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">并发</span>
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">async</span>
+                  <span class="px-2 py-0.5 bg-surface-container rounded-sm text-xs text-on-surface-variant font-mono">tokio</span>
+                </div>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-on-surface-variant/40 group-hover:text-primary group-hover:translate-x-1 transition-all"></i>
+              </div>
+            </div>
+          </article>
+
+          <!-- 无结果提示 -->
+          <div id="no-results" class="hidden py-16 text-center">
+            <i data-lucide="search-x" class="w-10 h-10 text-on-surface-variant/30 mx-auto mb-3 block"></i>
+            <p class="text-sm text-on-surface-variant">没有找到匹配的课程章节</p>
+            <button id="btn-reset-filter" class="mt-3 text-sm text-primary hover:underline font-medium">重置筛选条件</button>
+          </div>
+
+        </div>
+
+        <!-- 右侧边栏 -->
+        <div class="w-72 shrink-0 space-y-6">
+
+          <!-- 学习进度 -->
+          <div class="bg-surface rounded-lg shadow-card p-5">
+            <h3 class="text-sm font-semibold text-on-surface mb-4 flex items-center gap-2">
+              <i data-lucide="bar-chart-3" class="w-4 h-4 text-primary"></i>学习进度
+            </h3>
+            <div class="space-y-3">
+              <div class="flex justify-between text-xs">
+                <span class="text-on-surface-variant">已完成 2 / 6 章节</span>
+                <span class="text-primary font-semibold">33%</span>
+              </div>
+              <div class="w-full h-2 bg-surface-container rounded-full overflow-hidden">
+                <div id="progress-bar" class="h-full bg-primary rounded-full transition-all duration-500" style="width: 33%"></div>
+              </div>
+              <div class="pt-1 space-y-2">
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-2 h-2 rounded-full bg-success shrink-0"></span>
+                  <span class="text-on-surface-variant">已完成</span>
+                  <span class="text-on-surface font-medium ml-auto">2 章</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-2 h-2 rounded-full bg-primary shrink-0"></span>
+                  <span class="text-on-surface-variant">进行中</span>
+                  <span class="text-on-surface font-medium ml-auto">1 章</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-2 h-2 rounded-full bg-on-surface-variant/30 shrink-0"></span>
+                  <span class="text-on-surface-variant">未开始</span>
+                  <span class="text-on-surface font-medium ml-auto">3 章</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 推荐资源 -->
+          <div class="bg-surface rounded-lg shadow-card p-5">
+            <h3 class="text-sm font-semibold text-on-surface mb-4 flex items-center gap-2">
+              <i data-lucide="bookmark" class="w-4 h-4 text-primary"></i>推荐资源
+            </h3>
+            <div class="space-y-3">
+              <a href="#" id="resource-rust-book" class="flex items-start gap-2.5 group">
+                <i data-lucide="book-open" class="w-4 h-4 text-primary mt-0.5 shrink-0"></i>
+                <div>
+                  <span class="text-sm text-on-surface group-hover:text-primary transition-colors leading-snug">The Rust Programming Language</span>
+                  <p class="text-xs text-on-surface-variant mt-0.5">官方权威教程，适合系统学习</p>
+                </div>
+              </a>
+              <a href="#" id="resource-rust-by-example" class="flex items-start gap-2.5 group">
+                <i data-lucide="code" class="w-4 h-4 text-primary mt-0.5 shrink-0"></i>
+                <div>
+                  <span class="text-sm text-on-surface group-hover:text-primary transition-colors leading-snug">Rust by Example</span>
+                  <p class="text-xs text-on-surface-variant mt-0.5">通过可运行实例学习语法与特性</p>
+                </div>
+              </a>
+              <a href="#" id="resource-rustlings" class="flex items-start gap-2.5 group">
+                <i data-lucide="terminal" class="w-4 h-4 text-primary mt-0.5 shrink-0"></i>
+                <div>
+                  <span class="text-sm text-on-surface group-hover:text-primary transition-colors leading-snug">Rustlings</span>
+                  <p class="text-xs text-on-surface-variant mt-0.5">小练习集，边做边学巩固知识</p>
+                </div>
+              </a>
+              <a href="#" id="resource-rust-docs" class="flex items-start gap-2.5 group">
+                <i data-lucide="file-text" class="w-4 h-4 text-primary mt-0.5 shrink-0"></i>
+                <div>
+                  <span class="text-sm text-on-surface group-hover:text-primary transition-colors leading-snug">Rust 官方文档</span>
+                  <p class="text-xs text-on-surface-variant mt-0.5">标准库参考与 API 文档</p>
+                </div>
+              </a>
+              <a href="#" id="resource-rust-community" class="flex items-start gap-2.5 group">
+                <i data-lucide="users" class="w-4 h-4 text-primary mt-0.5 shrink-0"></i>
+                <div>
+                  <span class="text-sm text-on-surface group-hover:text-primary transition-colors leading-snug">Rust 中文社区</span>
+                  <p class="text-xs text-on-surface-variant mt-0.5">交流讨论、学习资料汇总</p>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <!-- 相关标签 -->
+          <div class="bg-surface rounded-lg shadow-card p-5">
+            <h3 class="text-sm font-semibold text-on-surface mb-4 flex items-center gap-2">
+              <i data-lucide="tags" class="w-4 h-4 text-primary"></i>相关标签
+            </h3>
+            <div class="flex flex-wrap gap-2" id="tag-cloud">
+              <span class="px-2.5 py-1 bg-surface-container rounded-sm text-xs text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-mono">变量</span>
+              <span class="px-2.5 py-1 bg-surface-container rounded-sm text-sm text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-medium font-mono">类型系统</span>
+              <span class="px-3 py-1 bg-surface-container rounded-sm text-sm text-primary hover:bg-primary/10 cursor-pointer transition-colors font-semibold font-mono">所有权</span>
+              <span class="px-2.5 py-1 bg-surface-container rounded-sm text-xs text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-mono">借用</span>
+              <span class="px-3 py-1 bg-surface-container rounded-sm text-sm text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-medium font-mono">生命周期</span>
+              <span class="px-2.5 py-1 bg-surface-container rounded-sm text-xs text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-mono">枚举</span>
+              <span class="px-2.5 py-1 bg-surface-container rounded-sm text-sm text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-medium font-mono">模式匹配</span>
+              <span class="px-3 py-1 bg-surface-container rounded-sm text-sm text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-semibold font-mono">Trait</span>
+              <span class="px-2.5 py-1 bg-surface-container rounded-sm text-xs text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-mono">泛型</span>
+              <span class="px-2.5 py-1 bg-surface-container rounded-sm text-xs text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-mono">并发</span>
+              <span class="px-3 py-1 bg-surface-container rounded-sm text-sm text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-medium font-mono">async</span>
+              <span class="px-2.5 py-1 bg-surface-container rounded-sm text-xs text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-mono">Cargo</span>
+              <span class="px-2.5 py-1 bg-surface-container rounded-sm text-xs text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-mono">内存安全</span>
+              <span class="px-2.5 py-1 bg-surface-container rounded-sm text-xs text-on-surface-variant hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors font-mono">错误处理</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+  <!-- @main-content:end -->
+  </div>
+
+  <script>
+  $(function() {
+    // 当前筛选状态
+    let currentDifficulty = 'all';
+    let currentStatus = 'all';
+
+    // 筛选卡片
+    function filterCards() {
+      let visibleCount = 0;
+      $('#course-list').find('article').each(function() {
+        const diff = $(this).data('difficulty');
+        const status = $(this).data('status');
+        const showDiff = currentDifficulty === 'all' || diff === currentDifficulty;
+        const showStatus = currentStatus === 'all' || status === currentStatus;
+        if (showDiff && showStatus) {
+          $(this).show();
+          visibleCount++;
+        } else {
+          $(this).hide();
+        }
+      });
+      // 更新计数
+      $('#result-count').text('共 ' + visibleCount + ' 个章节');
+      // 无结果提示
+      if (visibleCount === 0) {
+        $('#no-results').removeClass('hidden');
+      } else {
+        $('#no-results').addClass('hidden');
+      }
+    }
+
+    // 难度筛选按钮
+    $('#difficulty-filter').on('click', 'button', function() {
+      currentDifficulty = $(this).data('filter');
+      // 更新按钮样式
+      $('#difficulty-filter button').each(function() {
+        $(this).removeClass('bg-primary text-on-primary').addClass('bg-surface-container text-on-surface-variant hover:bg-surface-container-high');
+      });
+      $(this).removeClass('bg-surface-container text-on-surface-variant hover:bg-surface-container-high').addClass('bg-primary text-on-primary');
+      filterCards();
+    });
+
+    // 状态筛选下拉框
+    $('#status-filter').on('change', function() {
+      currentStatus = $(this).val();
+      filterCards();
+    });
+
+    // 重置筛选
+    $('#btn-reset-filter').on('click', function() {
+      currentDifficulty = 'all';
+      currentStatus = 'all';
+      $('#status-filter').val('all');
+      $('#difficulty-filter button').each(function() {
+        $(this).removeClass('bg-primary text-on-primary').addClass('bg-surface-container text-on-surface-variant hover:bg-surface-container-high');
+      });
+      $('#filter-all').removeClass('bg-surface-container text-on-surface-variant hover:bg-surface-container-high').addClass('bg-primary text-on-primary');
+      filterCards();
+    });
+
+    // 课程卡片点击 -> 跳转详情
+    $('#course-list').on('click', 'article', function() {
+      const id = $(this).data('id');
+      window.location.href = 'course-detail.html?id=' + id;
+    });
+
+    // 标签云点击 -> 筛选相关课程（预留交互）
+    // 点击标签后应实现：
+    // 1. 高亮当前选中的标签
+    // 2. 根据标签名匹配课程卡片中的标签内容
+    // 3. 仅显示包含该标签的课程卡片
+    // 4. 再次点击取消筛选
+    $('#tag-cloud').on('click', 'span', function() {
+      const tagName = $(this).text().trim();
+      console.log('筛选标签:', tagName);
+    });
+  });
+  </script>
+  <script>lucide.createIcons();</script>
+</body>
+
+</html>

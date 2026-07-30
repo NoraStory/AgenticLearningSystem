@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/jquery/jquery-3.7.1.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/lucide/lucide-1.11.0.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/tailwindcss/tailwindcss-browser-4.2.4.min.js"></script>
+
+  <style type="text/tailwindcss">
+    @theme {
+      /* === 品牌色 === */
+      --color-primary:              #2563EB;
+      --color-primary-container:    #DBEAFE;
+      --color-on-primary:           #ffffff;
+      /* === 背景 / 表面 === */
+      --color-background:                 #FFFFFF;
+      --color-surface-container-lowest:   #FAFAFA;
+      --color-surface:                    #FFFFFF;
+      --color-surface-container:          #F4F4F5;
+      --color-surface-container-high:     #E4E4E7;
+      --color-surface-container-highest:  #D4D4D8;
+      /* === 文字 === */
+      --color-on-surface:           #18181B;
+      --color-on-surface-variant:   #71717A;
+      /* === 功能色 === */
+      --color-success:  #22c55e;
+      --color-error:    #ef4444;
+      --color-warning:  #f59e0b;
+      /* === 边框 === */
+      --color-outline:          #E4E4E7;
+      --color-outline-variant:  #F4F4F5;
+      /* === 圆角 === */
+      --radius-sm:   0.375rem;
+      --radius-md:   0.5rem;
+      --radius-lg:   0.75rem;
+      --radius-xl:   1rem;
+      --radius-2xl:  1.5rem;
+      --radius-full: 9999px;
+      /* === 阴影 === */
+      --shadow-card:   0 2px 8px rgba(0,0,0,0.08);
+      --shadow-float:  0 10px 25px rgba(0,0,0,0.10);
+      --shadow-dialog: 0 25px 50px rgba(0,0,0,0.12);
+      /* === 字体 === */
+      --font-sans: "Inter", "Noto Sans SC", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+    }
+  </style>
+
+  <!-- 图片兜底 -->
+  <script>
+    document.addEventListener('error', function (e) {
+      const img = e.target;
+      if (img.tagName !== 'IMG' || img.dataset.fallback) return;
+      img.dataset.fallback = '1';
+      const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const cat = img.getAttribute('data-category') || '其他';
+      const alt = img.getAttribute('alt') || '';
+      const label = esc(alt.length > 8 ? alt.slice(0, 8) + '…' : alt);
+      const icons = { '人物': '👤', '自然风景': '🏞', '动物': '🐾', '建筑城市': '🏙', '运动体育': '⚽', '交通工具': '🚗', '食物': '🍽', '服饰时尚': '👗', '商业科技': '💼', '游戏娱乐': '🎮', '艺术': '🎨', '其他': '🖼' };
+      const icon = icons[cat] || '🖼';
+      const w = img.width || 400, h = img.height || 300;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="45%" text-anchor="middle" font-size="${Math.min(w, h) * 0.18}" dominant-baseline="central">${icon}</text><text x="50%" y="68%" text-anchor="middle" font-size="${Math.min(w, h) * 0.07}" fill="%239ca3af" font-family="system-ui,sans-serif" dominant-baseline="central">${label}</text></svg>`;
+      img.src = 'data:image/svg+xml,' + svg;
+    }, true);
+  </script>
+</head>
+
+<body class="bg-background text-on-surface font-sans">
+
+  <!-- @nav:start 导航组件，不需要的页面则不要复制此段（从 @nav:start 到 @nav:end） -->
+  <header class="bg-surface/80 backdrop-blur-sm sticky top-0 z-40 h-14 flex items-center justify-between px-6 border-b border-outline/20">
+    <a href="home.html" class="flex items-center gap-2.5">
+      <i data-lucide="braces" class="text-primary w-5 h-5"></i>
+      <span class="font-bold text-lg text-on-surface">CodeForge</span>
+      <span class="text-[10px] text-on-primary bg-primary px-1.5 py-0.5 rounded-sm font-medium">Academy</span>
+    </a>
+    <nav class="flex items-center gap-1">
+      <a href="home.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">首页</a>
+      <a href="rust.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">Rust</a>
+      <a href="algorithm.html" class="px-3 py-1.5 text-sm text-primary font-medium bg-primary/10 rounded-md" aria-current="page">算法</a>
+      <a href="agent.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">Agent</a>
+      <a href="practice.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">练习</a>
+      <a href="learning-path.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">路径</a>
+    </nav>
+    <div class="flex items-center gap-3">
+      <button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+        <i data-lucide="search" class="w-4 h-4"></i>
+      </button>
+      <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary cursor-pointer hover:bg-primary/20 transition-colors">初</div>
+    </div>
+  </header>
+  <div class="flex" style="height: calc(100vh - 3.5rem)">
+    <aside class="w-52 shrink-0 bg-surface-container-lowest/50 border-r border-outline/10 overflow-y-auto">
+      <nav class="p-3 space-y-1">
+        <a href="home.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="home" class="w-4 h-4"></i>首页
+        </a>
+        <a href="rust.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="cog" class="w-4 h-4"></i>Rust 编程
+        </a>
+        <a href="algorithm.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md bg-primary/10 text-primary font-medium text-sm" aria-current="page">
+          <i data-lucide="binary" class="w-4 h-4"></i>数据结构与算法
+        </a>
+        <a href="agent.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="bot" class="w-4 h-4"></i>AI Agent
+        </a>
+        <div class="my-2 mx-3 border-t border-outline/10"></div>
+        <a href="practice.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="terminal" class="w-4 h-4"></i>在线练习
+        </a>
+        <a href="learning-path.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="map" class="w-4 h-4"></i>学习路径
+        </a>
+        <a href="profile.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="user" class="w-4 h-4"></i>个人中心
+        </a>
+      </nav>
+      <!-- 小板报：学习日历 -->
+      <div class="mx-3 mt-4 p-3 bg-surface rounded-lg border border-outline/10">
+        <div class="text-xs font-medium text-on-surface-variant mb-2">学习小板报</div>
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between"><span class="text-on-surface-variant">今日</span><span class="text-primary font-medium">已学 45 分钟</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本周</span><span class="text-on-surface">5/7 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本月</span><span class="text-on-surface">18/30 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">连续打卡</span><span class="text-error font-medium">15 天</span></div>
+        </div>
+      </div>
+    </aside>
+  <!-- @nav:end 导航组件，不需要的页面则不要复制此段 -->
+
+  <!-- @main-content:start -->
+  <main class="flex-1 min-w-0 overflow-y-auto bg-background">
+    <div class="max-w-6xl mx-auto px-8 py-8">
+
+      <!-- 页面标题区 -->
+      <div class="mb-8">
+        <div class="flex items-center gap-2 text-on-surface-variant text-xs mb-3">
+          <i data-lucide="binary" class="w-3.5 h-3.5"></i>
+          <span>算法</span>
+          <i data-lucide="chevron-right" class="w-3 h-3"></i>
+          <span>数据结构与算法</span>
+        </div>
+        <h1 class="text-2xl font-bold text-on-surface mb-2">数据结构与算法</h1>
+        <p class="text-sm text-on-surface-variant leading-relaxed max-w-2xl">系统性地掌握常见数据结构与算法，从基础到进阶，每道题都配有详细题解与多种解法分析。</p>
+        <div class="flex items-center gap-6 mt-4 text-sm">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="layers" class="w-4 h-4 text-on-surface-variant"></i>
+            <span class="text-on-surface-variant">题目总数</span>
+            <span class="font-semibold text-on-surface">156</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="check-circle" class="w-4 h-4 text-success"></i>
+            <span class="text-on-surface-variant">已解决</span>
+            <span class="font-semibold text-success">42</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="clock" class="w-4 h-4 text-warning"></i>
+            <span class="text-on-surface-variant">尝试中</span>
+            <span class="font-semibold text-warning">8</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 分类标签导航 -->
+      <div id="category-tags" class="flex flex-wrap gap-2 mb-8 pb-6 border-b border-outline/10">
+        <button id="tag-all" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-primary text-on-primary transition-colors" data-category="all">全部</button>
+        <button id="tag-array" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="array">数组</button>
+        <button id="tag-linked-list" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="linked-list">链表</button>
+        <button id="tag-stack" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="stack">栈与队列</button>
+        <button id="tag-hash" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="hash">哈希表</button>
+        <button id="tag-tree" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="tree">树</button>
+        <button id="tag-graph" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="graph">图</button>
+        <button id="tag-sort" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="sort">排序</button>
+        <button id="tag-search" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="search">查找</button>
+        <button id="tag-dp" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="dp">动态规划</button>
+        <button id="tag-greedy" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="greedy">贪心</button>
+        <button id="tag-backtrack" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="backtrack">回溯</button>
+        <button id="tag-two-pointer" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="two-pointer">双指针</button>
+        <button id="tag-sliding" class="tag-btn px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="sliding">滑动窗口</button>
+      </div>
+
+      <!-- 主体：左侧题目列表 + 右侧边栏 -->
+      <div class="flex gap-8">
+
+        <!-- 左侧：题目列表 -->
+        <div class="flex-1 min-w-0 space-y-4">
+
+          <!-- 题目 1：两数之和 -->
+          <div class="problem-card bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow" data-category="array hash" data-difficulty="easy" data-status="solved">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-mono text-on-surface-variant">001</span>
+                  <h3 class="text-base font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">两数之和</h3>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-success/15 text-success">简单</span>
+                </div>
+                <p class="text-sm text-on-surface-variant leading-relaxed mb-3">给定一个整数数组 nums 和一个整数目标值 target，请你在该数组中找出和为目标值 target 的那两个整数，并返回它们的数组下标。</p>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">数组</span>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">哈希表</span>
+                  <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                    <i data-lucide="users" class="w-3 h-3"></i>通过率 52.3%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs text-success">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>已解决
+                </span>
+                <button class="btn-practice bg-primary text-on-primary px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 active:scale-[0.98] transition-all" data-id="1">开始练习</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 题目 2：反转链表 -->
+          <div class="problem-card bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow" data-category="linked-list" data-difficulty="easy" data-status="solved">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-mono text-on-surface-variant">206</span>
+                  <h3 class="text-base font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">反转链表</h3>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-success/15 text-success">简单</span>
+                </div>
+                <p class="text-sm text-on-surface-variant leading-relaxed mb-3">给你单链表的头节点 head，请你反转链表，并返回反转后的链表。要求使用迭代和递归两种解法实现。</p>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">链表</span>
+                  <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                    <i data-lucide="users" class="w-3 h-3"></i>通过率 71.2%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs text-success">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>已解决
+                </span>
+                <button class="btn-practice bg-primary text-on-primary px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 active:scale-[0.98] transition-all" data-id="206">开始练习</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 题目 3：有效的括号 -->
+          <div class="problem-card bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow" data-category="stack" data-difficulty="easy" data-status="solved">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-mono text-on-surface-variant">020</span>
+                  <h3 class="text-base font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">有效的括号</h3>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-success/15 text-success">简单</span>
+                </div>
+                <p class="text-sm text-on-surface-variant leading-relaxed mb-3">给定一个只包括 '('，')'，'{'，'}'，'['，']' 的字符串 s，判断字符串是否有效。有效字符串需满足括号正确配对与嵌套。</p>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">栈与队列</span>
+                  <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                    <i data-lucide="users" class="w-3 h-3"></i>通过率 44.5%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs text-success">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>已解决
+                </span>
+                <button class="btn-practice bg-primary text-on-primary px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 active:scale-[0.98] transition-all" data-id="20">开始练习</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 题目 4：合并 K 个升序链表 -->
+          <div class="problem-card bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow" data-category="linked-list" data-difficulty="hard" data-status="attempting">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-mono text-on-surface-variant">023</span>
+                  <h3 class="text-base font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">合并 K 个升序链表</h3>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-error/15 text-error">困难</span>
+                </div>
+                <p class="text-sm text-on-surface-variant leading-relaxed mb-3">给你一个链表数组，每个链表都已经按升序排列。请你将所有链表合并到一个升序链表中，返回合并后的链表。</p>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">链表</span>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">堆</span>
+                  <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                    <i data-lucide="users" class="w-3 h-3"></i>通过率 55.1%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs text-warning">
+                  <i data-lucide="loader" class="w-3.5 h-3.5"></i>尝试中
+                </span>
+                <button class="btn-practice bg-primary text-on-primary px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 active:scale-[0.98] transition-all" data-id="23">开始练习</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 题目 5：LRU 缓存 -->
+          <div class="problem-card bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow" data-category="hash linked-list" data-difficulty="medium" data-status="attempting">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-mono text-on-surface-variant">146</span>
+                  <h3 class="text-base font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">LRU 缓存</h3>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-warning/15 text-warning">中等</span>
+                </div>
+                <p class="text-sm text-on-surface-variant leading-relaxed mb-3">请你设计并实现一个满足 LRU（最近最少使用）缓存约束的数据结构，支持 get 和 put 操作，时间复杂度均为 O(1)。</p>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">哈希表</span>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">链表</span>
+                  <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                    <i data-lucide="users" class="w-3 h-3"></i>通过率 53.8%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs text-warning">
+                  <i data-lucide="loader" class="w-3.5 h-3.5"></i>尝试中
+                </span>
+                <button class="btn-practice bg-primary text-on-primary px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 active:scale-[0.98] transition-all" data-id="146">开始练习</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 题目 6：二叉树的层序遍历 -->
+          <div class="problem-card bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow" data-category="tree" data-difficulty="medium" data-status="solved">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-mono text-on-surface-variant">102</span>
+                  <h3 class="text-base font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">二叉树的层序遍历</h3>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-warning/15 text-warning">中等</span>
+                </div>
+                <p class="text-sm text-on-surface-variant leading-relaxed mb-3">给你二叉树的根节点 root，返回其节点值的层序遍历（逐层地，从左到右访问所有节点）。</p>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">树</span>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">BFS</span>
+                  <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                    <i data-lucide="users" class="w-3 h-3"></i>通过率 67.2%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs text-success">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>已解决
+                </span>
+                <button class="btn-practice bg-primary text-on-primary px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 active:scale-[0.98] transition-all" data-id="102">开始练习</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 题目 7：课程表 -->
+          <div class="problem-card bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow" data-category="graph" data-difficulty="medium" data-status="unsolved">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-mono text-on-surface-variant">207</span>
+                  <h3 class="text-base font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">课程表</h3>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-warning/15 text-warning">中等</span>
+                </div>
+                <p class="text-sm text-on-surface-variant leading-relaxed mb-3">你这个学期必须选修 numCourses 门课程，记为 0 到 numCourses - 1。在选修某些课程之前需要一些先修课程。判断是否可能完成所有课程。</p>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">图</span>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">拓扑排序</span>
+                  <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                    <i data-lucide="users" class="w-3 h-3"></i>通过率 56.3%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs text-on-surface-variant">
+                  <i data-lucide="circle" class="w-3.5 h-3.5"></i>未开始
+                </span>
+                <button class="btn-practice bg-primary text-on-primary px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 active:scale-[0.98] transition-all" data-id="207">开始练习</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 题目 8：最长递增子序列 -->
+          <div class="problem-card bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow" data-category="dp" data-difficulty="medium" data-status="unsolved">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-mono text-on-surface-variant">300</span>
+                  <h3 class="text-base font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">最长递增子序列</h3>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-warning/15 text-warning">中等</span>
+                </div>
+                <p class="text-sm text-on-surface-variant leading-relaxed mb-3">给你一个整数数组 nums，找到其中最长严格递增子序列的长度。子序列不要求连续，但要保持相对顺序。</p>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">动态规划</span>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">二分查找</span>
+                  <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                    <i data-lucide="users" class="w-3 h-3"></i>通过率 54.1%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs text-on-surface-variant">
+                  <i data-lucide="circle" class="w-3.5 h-3.5"></i>未开始
+                </span>
+                <button class="btn-practice bg-primary text-on-primary px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 active:scale-[0.98] transition-all" data-id="300">开始练习</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 题目 9：接雨水 -->
+          <div class="problem-card bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow" data-category="two-pointer stack" data-difficulty="hard" data-status="attempting">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-mono text-on-surface-variant">042</span>
+                  <h3 class="text-base font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">接雨水</h3>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-error/15 text-error">困难</span>
+                </div>
+                <p class="text-sm text-on-surface-variant leading-relaxed mb-3">给定 n 个非负整数表示每个宽度为 1 的柱子的高度图，计算按此排列的柱子，下雨之后能接多少雨水。</p>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">双指针</span>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">栈</span>
+                  <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                    <i data-lucide="users" class="w-3 h-3"></i>通过率 60.2%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs text-warning">
+                  <i data-lucide="loader" class="w-3.5 h-3.5"></i>尝试中
+                </span>
+                <button class="btn-practice bg-primary text-on-primary px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 active:scale-[0.98] transition-all" data-id="42">开始练习</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 题目 10：无重复字符的最长子串 -->
+          <div class="problem-card bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow" data-category="sliding hash" data-difficulty="medium" data-status="solved">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-mono text-on-surface-variant">003</span>
+                  <h3 class="text-base font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">无重复字符的最长子串</h3>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-warning/15 text-warning">中等</span>
+                </div>
+                <p class="text-sm text-on-surface-variant leading-relaxed mb-3">给定一个字符串 s，请你找出其中不含有重复字符的最长连续子字符串的长度。</p>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">滑动窗口</span>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">哈希表</span>
+                  <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                    <i data-lucide="users" class="w-3 h-3"></i>通过率 38.7%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs text-success">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>已解决
+                </span>
+                <button class="btn-practice bg-primary text-on-primary px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 active:scale-[0.98] transition-all" data-id="3">开始练习</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 题目 11：三数之和 -->
+          <div class="problem-card bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow" data-category="array two-pointer" data-difficulty="medium" data-status="unsolved">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-mono text-on-surface-variant">015</span>
+                  <h3 class="text-base font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">三数之和</h3>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-warning/15 text-warning">中等</span>
+                </div>
+                <p class="text-sm text-on-surface-variant leading-relaxed mb-3">给你一个整数数组 nums，判断是否存在三元组满足 nums[i] + nums[j] + nums[k] == 0，且不包含重复的三元组。</p>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">数组</span>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">双指针</span>
+                  <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                    <i data-lucide="users" class="w-3 h-3"></i>通过率 36.5%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs text-on-surface-variant">
+                  <i data-lucide="circle" class="w-3.5 h-3.5"></i>未开始
+                </span>
+                <button class="btn-practice bg-primary text-on-primary px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 active:scale-[0.98] transition-all" data-id="15">开始练习</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 题目 12：全排列 -->
+          <div class="problem-card bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow" data-category="backtrack" data-difficulty="medium" data-status="unsolved">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-mono text-on-surface-variant">046</span>
+                  <h3 class="text-base font-semibold text-on-surface hover:text-primary cursor-pointer transition-colors">全排列</h3>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-warning/15 text-warning">中等</span>
+                </div>
+                <p class="text-sm text-on-surface-variant leading-relaxed mb-3">给定一个不含重复数字的数组 nums，按任意顺序返回它的全排列。使用回溯法实现。</p>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">回溯</span>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-primary/10 text-primary">数组</span>
+                  <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                    <i data-lucide="users" class="w-3 h-3"></i>通过率 78.6%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs text-on-surface-variant">
+                  <i data-lucide="circle" class="w-3.5 h-3.5"></i>未开始
+                </span>
+                <button class="btn-practice bg-primary text-on-primary px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90 active:scale-[0.98] transition-all" data-id="46">开始练习</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 右侧边栏 -->
+        <div class="w-64 shrink-0 space-y-6">
+
+          <!-- 每日一题 -->
+          <div class="bg-surface rounded-lg shadow-card p-5 border-l-4 border-primary">
+            <div class="flex items-center gap-2 mb-3">
+              <i data-lucide="sparkles" class="w-4 h-4 text-primary"></i>
+              <span class="text-xs font-semibold text-primary uppercase tracking-wide">每日一题</span>
+            </div>
+            <h4 class="text-sm font-semibold text-on-surface mb-1">接雨水</h4>
+            <p class="text-xs text-on-surface-variant mb-3 leading-relaxed">经典双指针 / 单调栈问题，考察对数组遍历的深入理解。</p>
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-error/15 text-error">困难</span>
+              <button id="btn-daily" class="text-primary text-xs font-medium hover:underline flex items-center gap-1">
+                立即挑战
+                <i data-lucide="arrow-right" class="w-3 h-3"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- 按难度统计 -->
+          <div class="bg-surface rounded-lg shadow-card p-5">
+            <h4 class="text-xs font-semibold text-on-surface uppercase tracking-wide mb-4">解题统计</h4>
+            <div class="space-y-3">
+              <!-- 简单 -->
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="text-on-surface-variant flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-success"></span>简单
+                  </span>
+                  <span class="text-on-surface font-medium">18 / 30</span>
+                </div>
+                <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+                  <div class="h-full bg-success rounded-full" style="width: 60%"></div>
+                </div>
+              </div>
+              <!-- 中等 -->
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="text-on-surface-variant flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-warning"></span>中等
+                  </span>
+                  <span class="text-on-surface font-medium">20 / 85</span>
+                </div>
+                <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+                  <div class="h-full bg-warning rounded-full" style="width: 23.5%"></div>
+                </div>
+              </div>
+              <!-- 困难 -->
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <span class="text-on-surface-variant flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-error"></span>困难
+                  </span>
+                  <span class="text-on-surface font-medium">4 / 41</span>
+                </div>
+                <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+                  <div class="h-full bg-error rounded-full" style="width: 9.8%"></div>
+                </div>
+              </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-outline/10 flex items-center justify-between text-xs">
+              <span class="text-on-surface-variant">总计</span>
+              <span class="font-semibold text-on-surface">42 / 156</span>
+            </div>
+          </div>
+
+          <!-- 筛选器 -->
+          <div class="bg-surface rounded-lg shadow-card p-5">
+            <h4 class="text-xs font-semibold text-on-surface uppercase tracking-wide mb-4">筛选</h4>
+            <div class="space-y-4">
+              <!-- 难度筛选 -->
+              <div>
+                <label class="text-xs text-on-surface-variant mb-2 block">难度</label>
+                <div class="flex flex-wrap gap-1.5">
+                  <button id="filter-easy" class="filter-btn px-2.5 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant hover:bg-success/15 hover:text-success transition-colors" data-filter="easy">简单</button>
+                  <button id="filter-medium" class="filter-btn px-2.5 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant hover:bg-warning/15 hover:text-warning transition-colors" data-filter="medium">中等</button>
+                  <button id="filter-hard" class="filter-btn px-2.5 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant hover:bg-error/15 hover:text-error transition-colors" data-filter="hard">困难</button>
+                </div>
+              </div>
+              <!-- 状态筛选 -->
+              <div>
+                <label class="text-xs text-on-surface-variant mb-2 block">状态</label>
+                <div class="flex flex-wrap gap-1.5">
+                  <button id="filter-solved" class="filter-btn px-2.5 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant hover:bg-success/15 hover:text-success transition-colors" data-filter="solved">已解决</button>
+                  <button id="filter-attempting" class="filter-btn px-2.5 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant hover:bg-warning/15 hover:text-warning transition-colors" data-filter="attempting">尝试中</button>
+                  <button id="filter-unsolved" class="filter-btn px-2.5 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant hover:bg-on-surface-variant/15 hover:text-on-surface transition-colors" data-filter="unsolved">未开始</button>
+                </div>
+              </div>
+              <!-- 重置 -->
+              <button id="btn-reset-filter" class="w-full px-3 py-1.5 rounded-md text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors">重置筛选</button>
+            </div>
+          </div>
+
+          <!-- 热门标签 -->
+          <div class="bg-surface rounded-lg shadow-card p-5">
+            <h4 class="text-xs font-semibold text-on-surface uppercase tracking-wide mb-4">热门标签</h4>
+            <div class="flex flex-wrap gap-1.5">
+              <span class="px-2 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant">数组 <span class="text-on-surface-variant/60 ml-0.5">32</span></span>
+              <span class="px-2 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant">动态规划 <span class="text-on-surface-variant/60 ml-0.5">28</span></span>
+              <span class="px-2 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant">链表 <span class="text-on-surface-variant/60 ml-0.5">21</span></span>
+              <span class="px-2 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant">树 <span class="text-on-surface-variant/60 ml-0.5">19</span></span>
+              <span class="px-2 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant">双指针 <span class="text-on-surface-variant/60 ml-0.5">17</span></span>
+              <span class="px-2 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant">回溯 <span class="text-on-surface-variant/60 ml-0.5">15</span></span>
+              <span class="px-2 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant">贪心 <span class="text-on-surface-variant/60 ml-0.5">14</span></span>
+              <span class="px-2 py-1 rounded-md text-xs bg-surface-container text-on-surface-variant">图 <span class="text-on-surface-variant/60 ml-0.5">12</span></span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+  <!-- @main-content:end -->
+
+  <script>lucide.createIcons();</script>
+
+  <script>
+  $(function() {
+
+    // 分类标签切换
+    $('#category-tags').on('click', '.tag-btn', function() {
+      const $btn = $(this);
+      const category = $btn.data('category');
+
+      // 更新标签激活态
+      $('.tag-btn').removeClass('bg-primary text-on-primary').addClass('bg-surface-container text-on-surface-variant');
+      $btn.removeClass('bg-surface-container text-on-surface-variant').addClass('bg-primary text-on-primary');
+
+      // 筛选题目卡片
+      if (category === 'all') {
+        $('.problem-card').show();
+      } else {
+        $('.problem-card').each(function() {
+          const cats = $(this).data('category');
+          if (cats && cats.indexOf(category) !== -1) {
+            $(this).show();
+          } else {
+            $(this).hide();
+          }
+        });
+      }
+    });
+
+    // 筛选器 - 难度和状态
+    let activeDifficulty = null;
+    let activeStatus = null;
+
+    $('#btn-reset-filter').on('click', function() {
+      activeDifficulty = null;
+      activeStatus = null;
+      $('.filter-btn').removeClass('bg-success/15 text-success bg-warning/15 text-warning bg-error/15 text-error bg-on-surface-variant/15 text-on-surface');
+      applyFilters();
+    });
+
+    $('.filter-btn').on('click', function() {
+      const $btn = $(this);
+      const filter = $btn.data('filter');
+      const difficultyFilters = ['easy', 'medium', 'hard'];
+      const statusFilters = ['solved', 'attempting', 'unsolved'];
+
+      if (difficultyFilters.indexOf(filter) !== -1) {
+        // 难度筛选切换
+        if (activeDifficulty === filter) {
+          activeDifficulty = null;
+          $btn.removeClass('bg-success/15 text-success bg-warning/15 text-warning bg-error/15 text-error');
+        } else {
+          activeDifficulty = filter;
+          $('.filter-btn').filter(function() {
+            return difficultyFilters.indexOf($(this).data('filter')) !== -1;
+          }).removeClass('bg-success/15 text-success bg-warning/15 text-warning bg-error/15 text-error');
+          if (filter === 'easy') $btn.addClass('bg-success/15 text-success');
+          else if (filter === 'medium') $btn.addClass('bg-warning/15 text-warning');
+          else if (filter === 'hard') $btn.addClass('bg-error/15 text-error');
+        }
+      } else if (statusFilters.indexOf(filter) !== -1) {
+        // 状态筛选切换
+        if (activeStatus === filter) {
+          activeStatus = null;
+          $btn.removeClass('bg-success/15 text-success bg-warning/15 text-warning bg-on-surface-variant/15 text-on-surface');
+        } else {
+          activeStatus = filter;
+          $('.filter-btn').filter(function() {
+            return statusFilters.indexOf($(this).data('filter')) !== -1;
+          }).removeClass('bg-success/15 text-success bg-warning/15 text-warning bg-on-surface-variant/15 text-on-surface');
+          if (filter === 'solved') $btn.addClass('bg-success/15 text-success');
+          else if (filter === 'attempting') $btn.addClass('bg-warning/15 text-warning');
+          else if (filter === 'unsolved') $btn.addClass('bg-on-surface-variant/15 text-on-surface');
+        }
+      }
+
+      applyFilters();
+    });
+
+    function applyFilters() {
+      $('.problem-card').each(function() {
+        const $card = $(this);
+        const difficulty = $card.data('difficulty');
+        const status = $card.data('status');
+        let show = true;
+
+        if (activeDifficulty && difficulty !== activeDifficulty) {
+          show = false;
+        }
+        if (activeStatus && status !== activeStatus) {
+          show = false;
+        }
+
+        $card.toggle(show);
+      });
+    }
+
+    // 开始练习按钮 - 跳转到练习页面
+    $('.btn-practice').on('click', function() {
+      const problemId = $(this).data('id');
+      window.location.href = 'practice.html?problem_id=' + problemId;
+    });
+
+    // 每日一题按钮
+    $('#btn-daily').on('click', function() {
+      window.location.href = 'practice.html?problem_id=42';
+    });
+
+  });
+  </script>
+
+</body>
+
+</html>

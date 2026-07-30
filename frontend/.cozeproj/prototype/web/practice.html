@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/jquery/jquery-3.7.1.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/lucide/lucide-1.11.0.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/tailwindcss/tailwindcss-browser-4.2.4.min.js"></script>
+
+  <style type="text/tailwindcss">
+    @theme {
+      /* === 品牌色 === */
+      --color-primary:              #2563EB;
+      --color-primary-container:    #DBEAFE;
+      --color-on-primary:           #ffffff;
+      /* === 背景 / 表面 === */
+      --color-background:                 #FFFFFF;
+      --color-surface-container-lowest:   #FAFAFA;
+      --color-surface:                    #FFFFFF;
+      --color-surface-container:          #F4F4F5;
+      --color-surface-container-high:     #E4E4E7;
+      --color-surface-container-highest:  #D4D4D8;
+      /* === 文字 === */
+      --color-on-surface:           #18181B;
+      --color-on-surface-variant:   #71717A;
+      /* === 功能色 === */
+      --color-success:  #22c55e;
+      --color-error:    #ef4444;
+      --color-warning:  #f59e0b;
+      /* === 边框 === */
+      --color-outline:          #E4E4E7;
+      --color-outline-variant:  #F4F4F5;
+      /* === 圆角 === */
+      --radius-sm:   0.375rem;
+      --radius-md:   0.5rem;
+      --radius-lg:   0.75rem;
+      --radius-xl:   1rem;
+      --radius-2xl:  1.5rem;
+      --radius-full: 9999px;
+      /* === 阴影 === */
+      --shadow-card:   0 2px 8px rgba(0,0,0,0.08);
+      --shadow-float:  0 10px 25px rgba(0,0,0,0.10);
+      --shadow-dialog: 0 25px 50px rgba(0,0,0,0.12);
+      /* === 字体 === */
+      --font-sans: "Inter", "Noto Sans SC", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+    }
+  </style>
+
+  <!-- 图片兜底 -->
+  <script>
+    document.addEventListener('error', function (e) {
+      const img = e.target;
+      if (img.tagName !== 'IMG' || img.dataset.fallback) return;
+      img.dataset.fallback = '1';
+      const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const cat = img.getAttribute('data-category') || '其他';
+      const alt = img.getAttribute('alt') || '';
+      const label = esc(alt.length > 8 ? alt.slice(0, 8) + '…' : alt);
+      const icons = { '人物': '👤', '自然风景': '🏞', '动物': '🐾', '建筑城市': '🏙', '运动体育': '⚽', '交通工具': '🚗', '食物': '🍽', '服饰时尚': '👗', '商业科技': '💼', '游戏娱乐': '🎮', '艺术': '🎨', '其他': '🖼' };
+      const icon = icons[cat] || '🖼';
+      const w = img.width || 400, h = img.height || 300;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="45%" text-anchor="middle" font-size="${Math.min(w, h) * 0.18}" dominant-baseline="central">${icon}</text><text x="50%" y="68%" text-anchor="middle" font-size="${Math.min(w, h) * 0.07}" fill="%239ca3af" font-family="system-ui,sans-serif" dominant-baseline="central">${label}</text></svg>`;
+      img.src = 'data:image/svg+xml,' + svg;
+    }, true);
+  </script>
+</head>
+
+<body class="bg-background text-on-surface font-sans">
+
+  <!-- @nav:start 导航组件，不需要的页面则不要复制此段（从 @nav:start 到 @nav:end） -->
+  <header class="bg-surface/80 backdrop-blur-sm sticky top-0 z-40 h-14 flex items-center justify-between px-6 border-b border-outline/20">
+    <a href="home.html" class="flex items-center gap-2.5">
+      <i data-lucide="braces" class="text-primary w-5 h-5"></i>
+      <span class="font-bold text-lg text-on-surface">CodeForge</span>
+      <span class="text-[10px] text-on-primary bg-primary px-1.5 py-0.5 rounded-sm font-medium">Academy</span>
+    </a>
+    <nav class="flex items-center gap-1">
+      <a href="home.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">首页</a>
+      <a href="rust.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">Rust</a>
+      <a href="algorithm.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">算法</a>
+      <a href="agent.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">Agent</a>
+      <a href="practice.html" class="px-3 py-1.5 text-sm text-primary bg-primary/10 rounded-md font-medium" aria-current="page">练习</a>
+      <a href="learning-path.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">路径</a>
+    </nav>
+    <div class="flex items-center gap-3">
+      <button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+        <i data-lucide="search" class="w-4 h-4"></i>
+      </button>
+      <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary cursor-pointer hover:bg-primary/20 transition-colors">初</div>
+    </div>
+  </header>
+  <div class="flex" style="height: calc(100vh - 3.5rem)">
+    <aside class="w-52 shrink-0 bg-surface-container-lowest/50 border-r border-outline/10 overflow-y-auto">
+      <nav class="p-3 space-y-1">
+        <a href="home.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="home" class="w-4 h-4"></i>首页
+        </a>
+        <a href="rust.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="cog" class="w-4 h-4"></i>Rust 编程
+        </a>
+        <a href="algorithm.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="binary" class="w-4 h-4"></i>数据结构与算法
+        </a>
+        <a href="agent.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="bot" class="w-4 h-4"></i>AI Agent
+        </a>
+        <div class="my-2 mx-3 border-t border-outline/10"></div>
+        <a href="practice.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md bg-primary/10 text-primary font-medium text-sm" aria-current="page">
+          <i data-lucide="terminal" class="w-4 h-4"></i>在线练习
+        </a>
+        <a href="learning-path.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="map" class="w-4 h-4"></i>学习路径
+        </a>
+        <a href="profile.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="user" class="w-4 h-4"></i>个人中心
+        </a>
+      </nav>
+      <!-- 小板报：学习日历 -->
+      <div class="mx-3 mt-4 p-3 bg-surface rounded-lg border border-outline/10">
+        <div class="text-xs font-medium text-on-surface-variant mb-2">学习小板报</div>
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between"><span class="text-on-surface-variant">今日</span><span class="text-primary font-medium">已学 45 分钟</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本周</span><span class="text-on-surface">5/7 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本月</span><span class="text-on-surface">18/30 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">连续打卡</span><span class="text-error font-medium">15 天</span></div>
+        </div>
+      </div>
+    </aside>
+  <!-- @nav:end 导航组件，不需要的页面则不要复制此段 -->
+
+  <main class="flex-1 min-w-0 overflow-y-auto bg-background">
+    <!-- @main-content:start -->
+
+    <!-- 顶部题目信息栏 -->
+    <div class="flex items-center justify-between px-6 py-3 bg-surface border-b border-outline/10">
+      <div class="flex items-center gap-3">
+        <span class="text-sm text-on-surface-variant font-mono">#42</span>
+        <h1 class="text-lg font-semibold text-on-surface">两数之和</h1>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-success/15 text-success">简单</span>
+      </div>
+      <div class="flex items-center gap-5">
+        <div class="flex items-center gap-1.5 text-xs text-on-surface-variant">
+          <i data-lucide="check-circle" class="w-3.5 h-3.5 text-success"></i>
+          <span>通过率 <span class="font-medium text-on-surface">49.2%</span></span>
+        </div>
+        <div class="flex items-center gap-1.5 text-xs text-on-surface-variant">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          <span>提交 <span class="font-medium text-on-surface">3.8M</span></span>
+        </div>
+        <div class="flex items-center gap-1.5 text-xs text-on-surface-variant">
+          <i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i>
+          <span>喜欢 <span class="font-medium text-on-surface">12.6K</span></span>
+        </div>
+        <button id="btn-favorite" class="flex items-center gap-1 text-xs text-on-surface-variant hover:text-warning transition-colors">
+          <i data-lucide="star" class="w-3.5 h-3.5"></i>
+          <span>收藏</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 主体区域：左侧题目描述 + 右侧代码编辑器 -->
+    <div class="flex" style="height: calc(100vh - 3.5rem - 3.25rem - 220px)">
+
+      <!-- 左侧：题目描述区域 (40%) -->
+      <div class="w-[40%] shrink-0 overflow-y-auto border-r border-outline/10 bg-surface">
+        <div class="p-5">
+          <!-- 题目描述 -->
+          <div class="mb-5">
+            <h2 class="text-base font-semibold text-on-surface mb-3">题目描述</h2>
+            <p class="text-sm text-on-surface leading-relaxed mb-3">
+              给定一个整数数组 <code class="px-1.5 py-0.5 bg-surface-container rounded text-xs font-mono text-primary">nums</code> 和一个整数目标值 <code class="px-1.5 py-0.5 bg-surface-container rounded text-xs font-mono text-primary">target</code>，请你在该数组中找出和为目标值 <em>target</em> 的那 <strong>两个</strong> 整数，并返回它们的数组下标。
+            </p>
+            <p class="text-sm text-on-surface leading-relaxed">
+              你可以假设每种输入只会对应一个答案，并且你不能使用两次相同的元素。你可以按任意顺序返回答案。
+            </p>
+          </div>
+
+          <!-- 示例 1 -->
+          <div class="mb-4">
+            <h3 class="text-sm font-semibold text-on-surface mb-2">示例 1：</h3>
+            <div class="bg-surface-container-lowest rounded-lg p-3 border border-outline/10">
+              <p class="text-xs font-mono text-on-surface mb-1.5"><span class="text-on-surface-variant">输入：</span>nums = [2,7,11,15], target = 9</p>
+              <p class="text-xs font-mono text-on-surface mb-1.5"><span class="text-on-surface-variant">输出：</span>[0,1]</p>
+              <p class="text-xs text-on-surface-variant">解释：因为 nums[0] + nums[1] == 9 ，返回 [0, 1] 。</p>
+            </div>
+          </div>
+
+          <!-- 示例 2 -->
+          <div class="mb-4">
+            <h3 class="text-sm font-semibold text-on-surface mb-2">示例 2：</h3>
+            <div class="bg-surface-container-lowest rounded-lg p-3 border border-outline/10">
+              <p class="text-xs font-mono text-on-surface mb-1.5"><span class="text-on-surface-variant">输入：</span>nums = [3,2,4], target = 6</p>
+              <p class="text-xs font-mono text-on-surface mb-1.5"><span class="text-on-surface-variant">输出：</span>[1,2]</p>
+            </div>
+          </div>
+
+          <!-- 示例 3 -->
+          <div class="mb-5">
+            <h3 class="text-sm font-semibold text-on-surface mb-2">示例 3：</h3>
+            <div class="bg-surface-container-lowest rounded-lg p-3 border border-outline/10">
+              <p class="text-xs font-mono text-on-surface mb-1.5"><span class="text-on-surface-variant">输入：</span>nums = [3,3], target = 6</p>
+              <p class="text-xs font-mono text-on-surface mb-1.5"><span class="text-on-surface-variant">输出：</span>[0,1]</p>
+            </div>
+          </div>
+
+          <!-- 约束条件 -->
+          <div class="mb-5">
+            <h3 class="text-sm font-semibold text-on-surface mb-2">约束条件：</h3>
+            <ul class="space-y-1 text-xs text-on-surface-variant">
+              <li class="flex items-start gap-1.5">
+              <span class="text-on-surface-variant mt-0.5">•</span>
+              <span><code class="px-1 py-0.5 bg-surface-container rounded font-mono text-primary">2 &lt;= nums.length &lt;= 10<sup>4</sup></code></span>
+              </li>
+              <li class="flex items-start gap-1.5">
+              <span class="text-on-surface-variant mt-0.5">•</span>
+              <span><code class="px-1 py-0.5 bg-surface-container rounded font-mono text-primary">-10<sup>9</sup> &lt;= nums[i] &lt;= 10<sup>9</sup></code></span>
+              </li>
+              <li class="flex items-start gap-1.5">
+              <span class="text-on-surface-variant mt-0.5">•</span>
+              <span><code class="px-1 py-0.5 bg-surface-container rounded font-mono text-primary">-10<sup>9</sup> &lt;= target &lt;= 10<sup>9</sup></code></span>
+              </li>
+              <li class="flex items-start gap-1.5">
+              <span class="text-on-surface-variant mt-0.5">•</span>
+              <span>只会存在一个有效答案</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- 相关标签 -->
+          <div>
+            <h3 class="text-sm font-semibold text-on-surface mb-2">相关标签：</h3>
+            <div class="flex flex-wrap gap-2">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-primary/10 text-primary">数组</span>
+              <span class="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-primary/10 text-primary">哈希表</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧：代码编辑器区域 (60%) -->
+      <div class="w-[60%] shrink-0 flex flex-col overflow-hidden">
+        <!-- 编辑器工具栏 -->
+        <div class="flex items-center justify-between px-4 py-2 bg-surface-container-lowest border-b border-outline/10">
+          <div class="flex items-center gap-3">
+            <select id="select-language" class="bg-surface-container border-none rounded-md px-3 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors cursor-pointer">
+              <option value="rust">Rust</option>
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript</option>
+            </select>
+            <div class="flex items-center gap-1 text-xs text-on-surface-variant">
+              <i data-lucide="file-code" class="w-3.5 h-3.5"></i>
+              <span class="font-mono">solution.rs</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-reset" class="px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:text-on-surface bg-surface-container rounded-md transition-colors">
+              <i data-lucide="rotate-ccw" class="w-3 h-3 inline-block mr-1"></i>重置代码
+            </button>
+            <button id="btn-run" class="px-3 py-1.5 text-xs font-medium text-on-surface bg-surface-container rounded-md hover:bg-surface-container-high transition-colors inline-flex items-center gap-1.5">
+              <i data-lucide="play" class="w-3 h-3"></i>运行代码
+            </button>
+            <button id="btn-submit" class="px-3 py-1.5 text-xs font-medium text-on-primary bg-primary rounded-md hover:opacity-90 active:scale-[0.98] transition-all inline-flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-3 h-3"></i>提交答案
+            </button>
+          </div>
+        </div>
+
+        <!-- 模拟代码编辑器 -->
+        <div id="code-editor" class="flex-1 overflow-auto bg-[#1e1e2e] font-mono text-sm leading-6" style="min-height: 0">
+          <div class="flex">
+            <!-- 行号列 -->
+            <div class="shrink-0 py-4 pr-3 pl-4 text-right select-none" style="color: #585880">
+              <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div>
+              <div>6</div><div>7</div><div>8</div><div>9</div><div>10</div>
+              <div>11</div><div>12</div><div>13</div><div>14</div><div>15</div>
+              <div>16</div><div>17</div><div>18</div><div>19</div><div>20</div>
+              <div>21</div><div>22</div>
+            </div>
+            <!-- 代码内容 -->
+            <div id="rust-code" class="py-4 pl-1 pr-4 flex-1 overflow-x-auto">
+              <div><span style="color:#c678dd">use</span> <span style="color:#e5c07b">std</span>::<span style="color:#e5c07b">collections</span>::<span style="color:#e5c07b">HashMap</span>;</div>
+              <div></div>
+              <div><span style="color:#c678dd">impl</span> <span style="color:#e5c07b">Solution</span> {</div>
+              <div>    <span style="color:#c678dd">pub fn</span> <span style="color:#61afef">two_sum</span>(<span style="color:#e06c75">nums</span>: <span style="color:#e5c07b">Vec</span>&lt;<span style="color:#e5c07b">i32</span>&gt;, <span style="color:#e06c75">target</span>: <span style="color:#e5c07b">i32</span>) -&gt; <span style="color:#e5c07b">Vec</span>&lt;<span style="color:#e5c07b">i32</span>&gt; {</div>
+              <div>        <span style="color:#c678dd">let mut</span> map = <span style="color:#e5c07b">HashMap</span>::<span style="color:#61afef">new</span>();</div>
+              <div>        </div>
+              <div>        <span style="color:#c678dd">for</span> (i, &amp;num) <span style="color:#c678dd">in</span> nums.<span style="color:#61afef">iter</span>().<span style="color:#61afef">enumerate</span>() {</div>
+              <div>            <span style="color:#c678dd">let</span> complement = target - num;</div>
+              <div>            </div>
+              <div>            <span style="color:#c678dd">if let</span> <span style="color:#e5c07b">Some</span>(&amp;j) = map.<span style="color:#61afef">get</span>(&amp;complement) {</div>
+              <div>                <span style="color:#c678dd">return</span> <span style="color:#61afef">vec!</span>[j <span style="color:#c678dd">as</span> i32, i <span style="color:#c678dd">as</span> i32];</div>
+              <div>            }</div>
+              <div>            </div>
+              <div>            map.<span style="color:#61afef">insert</span>(num, i);</div>
+              <div>        }</div>
+              <div>        </div>
+              <div>        <span style="color:#61afef">vec!</span>[]</div>
+              <div>    }</div>
+              <div>}</div>
+            </div>
+            <div id="python-code" class="py-4 pl-1 pr-4 flex-1 overflow-x-auto" style="display:none">
+              <div><span style="color:#c678dd">class</span> <span style="color:#e5c07b">Solution</span>:</div>
+              <div>    <span style="color:#c678dd">def</span> <span style="color:#61afef">twoSum</span>(<span style="color:#e06c75">self</span>, <span style="color:#e06c75">nums</span>: <span style="color:#e5c07b">List</span>[<span style="color:#e5c07b">int</span>], <span style="color:#e06c75">target</span>: <span style="color:#e5c07b">int</span>) -&gt; <span style="color:#e5c07b">List</span>[<span style="color:#e5c07b">int</span>]:</div>
+              <div>        num_map = {}</div>
+              <div>        </div>
+              <div>        <span style="color:#c678dd">for</span> i, num <span style="color:#c678dd">in</span> <span style="color:#61afef">enumerate</span>(nums):</div>
+              <div>            complement = target - num</div>
+              <div>            </div>
+              <div>            <span style="color:#c678dd">if</span> complement <span style="color:#c678dd">in</span> num_map:</div>
+              <div>                <span style="color:#c678dd">return</span> [num_map[complement], i]</div>
+              <div>            </div>
+              <div>            num_map[num] = i</div>
+            </div>
+            <div id="javascript-code" class="py-4 pl-1 pr-4 flex-1 overflow-x-auto" style="display:none">
+              <div><span style="color:#c678dd">function</span> <span style="color:#61afef">twoSum</span>(<span style="color:#e06c75">nums</span>, <span style="color:#e06c75">target</span>) {</div>
+              <div>    <span style="color:#c678dd">const</span> map = <span style="color:#c678dd">new</span> <span style="color:#e5c07b">Map</span>();</div>
+              <div>    </div>
+              <div>    <span style="color:#c678dd">for</span> (<span style="color:#c678dd">let</span> i = <span style="color:#d19a66">0</span>; i &lt; nums.length; i++) {</div>
+              <div>        <span style="color:#c678dd">const</span> complement = target - nums[i];</div>
+              <div>        </div>
+              <div>        <span style="color:#c678dd">if</span> (map.<span style="color:#61afef">has</span>(complement)) {</div>
+              <div>            <span style="color:#c678dd">return</span> [map.<span style="color:#61afef">get</span>(complement), i];</div>
+              <div>        }</div>
+              <div>        </div>
+              <div>        map.<span style="color:#61afef">set</span>(nums[i], i);</div>
+              <div>    }</div>
+              <div>}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部输出区域 -->
+    <div id="output-panel" class="border-t border-outline/10 bg-surface" style="height: 220px">
+      <!-- Tab 切换 -->
+      <div class="flex items-center justify-between px-4 border-b border-outline/10">
+        <div class="flex items-center gap-0">
+          <button id="tab-test" class="px-4 py-2.5 text-sm font-medium text-primary border-b-2 border-primary" data-tab="test">测试结果</button>
+          <button id="tab-stdout" class="px-4 py-2.5 text-sm font-medium text-on-surface-variant hover:text-on-surface border-b-2 border-transparent transition-colors" data-tab="stdout">stdout</button>
+          <button id="tab-result" class="px-4 py-2.5 text-sm font-medium text-on-surface-variant hover:text-on-surface border-b-2 border-transparent transition-colors" data-tab="result">执行结果</button>
+        </div>
+        <div class="flex items-center gap-3 text-xs text-on-surface-variant">
+          <span class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> 执行时间: <span class="font-medium text-on-surface">2ms</span></span>
+          <span class="flex items-center gap-1"><i data-lucide="hard-drive" class="w-3 h-3"></i> 内存消耗: <span class="font-medium text-on-surface">2.1MB</span></span>
+        </div>
+      </div>
+
+      <!-- 测试结果面板 -->
+      <div id="panel-test" class="p-4 overflow-y-auto" style="height: calc(220px - 42px)">
+        <!-- 测试用例 1 - 通过 -->
+        <div class="flex items-center gap-2 mb-3">
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-success/15 text-success">
+            <i data-lucide="check" class="w-3 h-3"></i> 通过
+          </span>
+          <span class="text-xs text-on-surface-variant">测试用例 1</span>
+        </div>
+        <div class="bg-surface-container-lowest rounded-lg p-3 border border-outline/10 mb-3">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-xs text-on-surface-variant mb-1">输入</p>
+              <p class="text-xs font-mono text-on-surface">nums = [2,7,11,15], target = 9</p>
+            </div>
+            <div>
+              <p class="text-xs text-on-surface-variant mb-1">输出</p>
+              <p class="text-xs font-mono text-on-surface">[0,1]</p>
+            </div>
+          </div>
+          <div class="mt-2 pt-2 border-t border-outline/10">
+            <p class="text-xs text-on-surface-variant">你的输出：<span class="font-mono text-success">[0,1]</span> <span class="text-success ml-1">✓</span></p>
+          </div>
+        </div>
+
+        <!-- 测试用例 2 - 通过 -->
+        <div class="flex items-center gap-2 mb-3">
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-success/15 text-success">
+            <i data-lucide="check" class="w-3 h-3"></i> 通过
+          </span>
+          <span class="text-xs text-on-surface-variant">测试用例 2</span>
+        </div>
+        <div class="bg-surface-container-lowest rounded-lg p-3 border border-outline/10 mb-3">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-xs text-on-surface-variant mb-1">输入</p>
+              <p class="text-xs font-mono text-on-surface">nums = [3,2,4], target = 6</p>
+            </div>
+            <div>
+              <p class="text-xs text-on-surface-variant mb-1">输出</p>
+              <p class="text-xs font-mono text-on-surface">[1,2]</p>
+            </div>
+          </div>
+          <div class="mt-2 pt-2 border-t border-outline/10">
+            <p class="text-xs text-on-surface-variant">你的输出：<span class="font-mono text-success">[1,2]</span> <span class="text-success ml-1">✓</span></p>
+          </div>
+        </div>
+
+        <!-- 测试用例 3 - 通过 -->
+        <div class="flex items-center gap-2 mb-3">
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-success/15 text-success">
+            <i data-lucide="check" class="w-3 h-3"></i> 通过
+          </span>
+          <span class="text-xs text-on-surface-variant">测试用例 3</span>
+        </div>
+        <div class="bg-surface-container-lowest rounded-lg p-3 border border-outline/10">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-xs text-on-surface-variant mb-1">输入</p>
+              <p class="text-xs font-mono text-on-surface">nums = [3,3], target = 6</p>
+            </div>
+            <div>
+              <p class="text-xs text-on-surface-variant mb-1">输出</p>
+              <p class="text-xs font-mono text-on-surface">[0,1]</p>
+            </div>
+          </div>
+          <div class="mt-2 pt-2 border-t border-outline/10">
+            <p class="text-xs text-on-surface-variant">你的输出：<span class="font-mono text-success">[0,1]</span> <span class="text-success ml-1">✓</span></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- stdout 面板（隐藏） -->
+      <div id="panel-stdout" class="p-4 overflow-y-auto hidden" style="height: calc(220px - 42px)">
+        <div class="bg-[#1e1e2e] rounded-lg p-4 font-mono text-xs leading-5" style="color: #abb2bf">
+          <div style="color: #98c379">=== 测试用例 1 ===</div>
+          <div>输入: nums = [2,7,11,15], target = 9</div>
+          <div>输出: [0, 1]</div>
+          <div style="color: #98c379">✓ 通过 (2ms)</div>
+          <div class="mt-2" style="color: #98c379">=== 测试用例 2 ===</div>
+          <div>输入: nums = [3,2,4], target = 6</div>
+          <div>输出: [1, 2]</div>
+          <div style="color: #98c379">✓ 通过 (1ms)</div>
+          <div class="mt-2" style="color: #98c379">=== 测试用例 3 ===</div>
+          <div>输入: nums = [3,3], target = 6</div>
+          <div>输出: [0, 1]</div>
+          <div style="color: #98c379">✓ 通过 (1ms)</div>
+          <div class="mt-3 pt-3 border-t" style="border-color: #3e4451; color: #5c6370">所有测试用例通过，无标准输出内容。</div>
+        </div>
+      </div>
+
+      <!-- 执行结果面板（隐藏） -->
+      <div id="panel-result" class="p-4 overflow-y-auto hidden" style="height: calc(220px - 42px)">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="flex items-center gap-2 px-3 py-2 bg-success/10 rounded-lg">
+            <i data-lucide="check-circle" class="w-5 h-5 text-success"></i>
+            <span class="text-sm font-medium text-success">通过</span>
+          </div>
+          <span class="text-sm text-on-surface-variant">3/3 个测试用例通过</span>
+        </div>
+        <div class="grid grid-cols-4 gap-4">
+          <div class="bg-surface-container-lowest rounded-lg p-3 border border-outline/10">
+            <p class="text-xs text-on-surface-variant mb-1">执行时间</p>
+            <p class="text-lg font-semibold text-on-surface">2 <span class="text-xs font-normal text-on-surface-variant">ms</span></p>
+            <p class="text-xs text-on-surface-variant mt-1">击败 89.3% 的用户</p>
+          </div>
+          <div class="bg-surface-container-lowest rounded-lg p-3 border border-outline/10">
+            <p class="text-xs text-on-surface-variant mb-1">内存消耗</p>
+            <p class="text-lg font-semibold text-on-surface">2.1 <span class="text-xs font-normal text-on-surface-variant">MB</span></p>
+            <p class="text-xs text-on-surface-variant mt-1">击败 72.5% 的用户</p>
+          </div>
+          <div class="bg-surface-container-lowest rounded-lg p-3 border border-outline/10">
+            <p class="text-xs text-on-surface-variant mb-1">时间复杂度</p>
+            <p class="text-lg font-semibold text-on-surface font-mono">O(n)</p>
+            <p class="text-xs text-on-surface-variant mt-1">哈希表一次遍历</p>
+          </div>
+          <div class="bg-surface-container-lowest rounded-lg p-3 border border-outline/10">
+            <p class="text-xs text-on-surface-variant mb-1">空间复杂度</p>
+            <p class="text-lg font-semibold text-on-surface font-mono">O(n)</p>
+            <p class="text-xs text-on-surface-variant mt-1">哈希表存储</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- @main-content:end -->
+  </main>
+
+  <script>lucide.createIcons();</script>
+
+  <script>
+  $(function() {
+    // 语言切换
+    $('#select-language').on('change', function() {
+      var lang = $(this).val();
+      $('#rust-code, #python-code, #javascript-code').hide();
+      $('#' + lang + '-code').show();
+    });
+
+    // Tab 切换 - 测试结果 / stdout / 执行结果
+    $('#tab-test, #tab-stdout, #tab-result').on('click', function() {
+      var tab = $(this).data('tab');
+      // 切换 tab 激活态
+      $('#tab-test, #tab-stdout, #tab-result').removeClass('text-primary border-primary').addClass('text-on-surface-variant border-transparent');
+      $(this).removeClass('text-on-surface-variant border-transparent').addClass('text-primary border-primary');
+      // 切换面板
+      $('#panel-test, #panel-stdout, #panel-result').addClass('hidden');
+      $('#panel-' + tab).removeClass('hidden');
+    });
+
+    // 运行代码按钮
+    $('#btn-run').on('click', function() {
+      console.log('运行代码 - 应实现：发送当前编辑器代码到后端执行，切换到底部"测试结果"Tab，显示执行进度动画，完成后展示测试用例结果');
+      // 切换到测试结果 tab
+      $('#tab-test').trigger('click');
+    });
+
+    // 提交答案按钮
+    $('#btn-submit').on('click', function() {
+      console.log('提交答案 - 应实现：提交代码进行全部测试用例验证，显示提交中状态，完成后展示所有用例的通过/失败结果及性能数据');
+      // 切换到执行结果 tab
+      $('#tab-result').trigger('click');
+    });
+
+    // 重置代码按钮
+    $('#btn-reset').on('click', function() {
+      console.log('重置代码 - 应实现：将编辑器内容恢复为当前语言的初始模板代码，清除所有修改');
+    });
+
+    // 收藏按钮
+    $('#btn-favorite').on('click', function() {
+      var $icon = $(this).find('[data-lucide]');
+      var isFav = $(this).data('favorited');
+      if (isFav) {
+        $(this).data('favorited', false);
+        $icon.attr('data-lucide', 'star');
+        $(this).find('span').text('收藏');
+        $(this).removeClass('text-warning');
+      } else {
+        $(this).data('favorited', true);
+        $icon.attr('data-lucide', 'star');
+        $(this).find('span').text('已收藏');
+        $(this).addClass('text-warning');
+      }
+      lucide.createIcons();
+    });
+  });
+  </script>
+</body>
+
+</html>

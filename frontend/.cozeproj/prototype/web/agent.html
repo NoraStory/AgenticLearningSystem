@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/jquery/jquery-3.7.1.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/lucide/lucide-0.11.0.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/tailwindcss/tailwindcss-browser-4.2.4.min.js"></script>
+
+  <style type="text/tailwindcss">
+    @theme {
+      /* === 品牌色 === */
+      --color-primary:              #2563EB;
+      --color-primary-container:    #DBEAFE;
+      --color-on-primary:           #ffffff;
+      /* === 背景 / 表面 === */
+      --color-background:                 #FFFFFF;
+      --color-surface-container-lowest:   #FAFAFA;
+      --color-surface:                    #FFFFFF;
+      --color-surface-container:          #F4F4F5;
+      --color-surface-container-high:     #E4E4E7;
+      --color-surface-container-highest:  #D4D4D8;
+      /* === 文字 === */
+      --color-on-surface:           #18181B;
+      --color-on-surface-variant:   #71717A;
+      /* === 功能色 === */
+      --color-success:  #22c55e;
+      --color-error:    #ef4444;
+      --color-warning:  #f59e0b;
+      /* === 边框 === */
+      --color-outline:          #E4E4E7;
+      --color-outline-variant:  #F4F4F5;
+      /* === 圆角 === */
+      --radius-sm:   0.375rem;
+      --radius-md:   0.5rem;
+      --radius-lg:   0.75rem;
+      --radius-xl:   1rem;
+      --radius-2xl:  1.5rem;
+      --radius-full: 9999px;
+      /* === 阴影 === */
+      --shadow-card:   0 2px 8px rgba(0,0,0,0.08);
+      --shadow-float:  0 10px 25px rgba(0,0,0,0.10);
+      --shadow-dialog: 0 25px 50px rgba(0,0,0,0.12);
+      /* === 字体 === */
+      --font-sans: "Inter", "Noto Sans SC", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+    }
+  </style>
+
+  <!-- 图片兜底 -->
+  <script>
+    document.addEventListener('error', function (e) {
+      const img = e.target;
+      if (img.tagName !== 'IMG' || img.dataset.fallback) return;
+      img.dataset.fallback = '1';
+      const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const cat = img.getAttribute('data-category') || '其他';
+      const alt = img.getAttribute('alt') || '';
+      const label = esc(alt.length > 8 ? alt.slice(0, 8) + '…' : alt);
+      const icons = { '人物': '👤', '自然风景': '🏞', '动物': '🐾', '建筑城市': '🏙', '运动体育': '⚽', '交通工具': '🚗', '食物': '🍽', '服饰时尚': '👗', '商业科技': '💼', '游戏娱乐': '🎮', '艺术': '🎨', '其他': '🖼' };
+      const icon = icons[cat] || '🖼';
+      const w = img.width || 400, h = img.height || 300;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="45%" text-anchor="middle" font-size="${Math.min(w, h) * 0.18}" dominant-baseline="central">${icon}</text><text x="50%" y="68%" text-anchor="middle" font-size="${Math.min(w, h) * 0.07}" fill="%239ca3af" font-family="system-ui,sans-serif" dominant-baseline="central">${label}</text></svg>`;
+      img.src = 'data:image/svg+xml,' + svg;
+    }, true);
+  </script>
+</head>
+
+<body class="bg-background text-on-surface font-sans">
+
+  <!-- @nav:start 导航组件，不需要的页面则不要复制此段（从 @nav:start 到 @nav:end） -->
+  <header class="bg-surface/80 backdrop-blur-sm sticky top-0 z-40 h-14 flex items-center justify-between px-6 border-b border-outline/20">
+    <a href="home.html" class="flex items-center gap-2.5">
+      <i data-lucide="braces" class="text-primary w-5 h-5"></i>
+      <span class="font-bold text-lg text-on-surface">CodeForge</span>
+      <span class="text-[10px] text-on-primary bg-primary px-1.5 py-0.5 rounded-sm font-medium">Academy</span>
+    </a>
+    <nav class="flex items-center gap-1">
+      <a href="home.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">首页</a>
+      <a href="rust.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">Rust</a>
+      <a href="algorithm.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">算法</a>
+      <a href="agent.html" class="px-3 py-1.5 text-sm text-primary bg-primary/10 rounded-md font-medium" aria-current="page">Agent</a>
+      <a href="practice.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">练习</a>
+      <a href="learning-path.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">路径</a>
+    </nav>
+    <div class="flex items-center gap-3">
+      <button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+        <i data-lucide="search" class="w-4 h-4"></i>
+      </button>
+      <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary cursor-pointer hover:bg-primary/20 transition-colors">初</div>
+    </div>
+  </header>
+  <div class="flex" style="height: calc(100vh - 3.5rem)">
+    <aside class="w-52 shrink-0 bg-surface-container-lowest/50 border-r border-outline/10 overflow-y-auto">
+      <nav class="p-3 space-y-1">
+        <a href="home.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="home" class="w-4 h-4"></i>首页
+        </a>
+        <a href="rust.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="cog" class="w-4 h-4"></i>Rust 编程
+        </a>
+        <a href="algorithm.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="binary" class="w-4 h-4"></i>数据结构与算法
+        </a>
+        <a href="agent.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md bg-primary/10 text-primary font-medium text-sm">
+          <i data-lucide="bot" class="w-4 h-4"></i>AI Agent
+        </a>
+        <div class="my-2 mx-3 border-t border-outline/10"></div>
+        <a href="practice.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="terminal" class="w-4 h-4"></i>在线练习
+        </a>
+        <a href="learning-path.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="map" class="w-4 h-4"></i>学习路径
+        </a>
+        <a href="profile.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="user" class="w-4 h-4"></i>个人中心
+        </a>
+      </nav>
+      <!-- 小板报：学习日历 -->
+      <div class="mx-3 mt-4 p-3 bg-surface rounded-lg border border-outline/10">
+        <div class="text-xs font-medium text-on-surface-variant mb-2">学习小板报</div>
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between"><span class="text-on-surface-variant">今日</span><span class="text-primary font-medium">已学 45 分钟</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本周</span><span class="text-on-surface">5/7 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本月</span><span class="text-on-surface">18/30 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">连续打卡</span><span class="text-error font-medium">15 天</span></div>
+        </div>
+      </div>
+    </aside>
+  <!-- @nav:end 导航组件，不需要的页面则不要复制此段 -->
+
+  <!-- @main-content:start -->
+  <main class="flex-1 min-w-0 overflow-y-auto bg-background">
+    <div class="max-w-6xl mx-auto px-8 py-10">
+
+      <!-- 页面标题区 -->
+      <div class="mb-10">
+        <div class="flex items-center gap-2 mb-3">
+          <i data-lucide="bot" class="w-5 h-5 text-primary"></i>
+          <span class="text-xs font-medium text-primary uppercase tracking-wider">AI AGENT DEVELOPMENT</span>
+        </div>
+        <h1 class="text-2xl font-bold text-on-surface mb-2">AI Agent 开发学习</h1>
+        <p class="text-sm text-on-surface-variant leading-relaxed max-w-2xl">从零基础到实战部署，系统掌握 AI Agent 开发全流程。涵盖 LangChain、LangGraph、RAG、多 Agent 协作等核心技术栈，配合动手项目快速构建你的第一个智能体应用。</p>
+      </div>
+
+      <!-- 主体两栏布局 -->
+      <div class="flex gap-8">
+
+        <!-- 左侧：课程模块 + 实战项目 -->
+        <div class="flex-1 min-w-0">
+
+          <!-- 课程模块列表（博客文章风格） -->
+          <div class="mb-12">
+            <h2 class="text-base font-semibold text-on-surface mb-6 flex items-center gap-2">
+              <i data-lucide="layers" class="w-4 h-4 text-primary"></i>课程模块
+            </h2>
+
+            <div class="space-y-6">
+
+              <!-- 模块-1：Agent 基础概念与架构 -->
+              <article class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-shadow cursor-pointer group" id="module-1">
+                <div class="flex flex-col sm:flex-row">
+                  <div class="sm:w-72 shrink-0 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1677442136019-21780ec59960?w=600&h=400&fit=crop" alt="AI Agent 概念图" data-category="商业科技" class="w-full h-48 sm:h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                  </div>
+                  <div class="p-5 flex flex-col justify-between flex-1">
+                    <div>
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-success/15 text-success">入门</span>
+                        <span class="text-xs text-on-surface-variant">6 节课</span>
+                      </div>
+                      <h3 class="text-base font-semibold text-on-surface mb-2 group-hover:text-primary transition-colors">Agent 基础概念与架构设计</h3>
+                      <p class="text-sm text-on-surface-variant leading-relaxed line-clamp-3">理解 AI Agent 的核心定义、与传统 Chatbot 的区别，掌握 ReAct、Plan-and-Execute 等主流 Agent 架构模式。学习 Agent 的感知-推理-行动循环，建立对智能体系统的全局认知。</p>
+                    </div>
+                    <div class="flex items-center gap-2 mt-3 flex-wrap">
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">Agent 架构</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">ReAct</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">Prompt Engineering</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <!-- 模块-2：LangChain 核心框架 -->
+              <article class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-shadow cursor-pointer group" id="module-2">
+                <div class="flex flex-col sm:flex-row">
+                  <div class="sm:w-72 shrink-0 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=600&h=400&fit=crop" alt="代码与框架结构图" data-category="商业科技" class="w-full h-48 sm:h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                  </div>
+                  <div class="p-5 flex flex-col justify-between flex-1">
+                    <div>
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-success/15 text-success">入门</span>
+                        <span class="text-xs text-on-surface-variant">8 节课</span>
+                      </div>
+                      <h3 class="text-base font-semibold text-on-surface mb-2 group-hover:text-primary transition-colors">LangChain 核心框架精讲</h3>
+                      <p class="text-sm text-on-surface-variant leading-relaxed line-clamp-3">深入 LangChain 的 Model I/O、Chain、Memory、Callback 四大核心模块。学习如何使用 LCEL 表达式语言构建链式调用，掌握 Runnable 接口与流式输出，搭建你的第一个 Agent 应用骨架。</p>
+                    </div>
+                    <div class="flex items-center gap-2 mt-3 flex-wrap">
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">LangChain</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">LCEL</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">Chain</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <!-- 模块-3：RAG 检索增强生成 -->
+              <article class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-shadow cursor-pointer group" id="module-3">
+                <div class="flex flex-col sm:flex-row">
+                  <div class="sm:w-72 shrink-0 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&h=400&fit=crop" alt="数据检索与知识图谱" data-category="商业科技" class="w-full h-48 sm:h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                  </div>
+                  <div class="p-5 flex flex-col justify-between flex-1">
+                    <div>
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-warning/15 text-warning">进阶</span>
+                        <span class="text-xs text-on-surface-variant">10 节课</span>
+                      </div>
+                      <h3 class="text-base font-semibold text-on-surface mb-2 group-hover:text-primary transition-colors">RAG 检索增强生成实战</h3>
+                      <p class="text-sm text-on-surface-variant leading-relaxed line-clamp-3">从文档解析、文本分块到向量嵌入，完整构建 RAG 流水线。学习 ChromaDB、FAISS 等向量数据库的使用，掌握混合检索、重排序、查询改写等高级优化策略，让 Agent 具备精准的知识问答能力。</p>
+                    </div>
+                    <div class="flex items-center gap-2 mt-3 flex-wrap">
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">RAG</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">ChromaDB</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">向量检索</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">Embedding</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <!-- 模块-4：LangGraph 状态机与图编排 -->
+              <article class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-shadow cursor-pointer group" id="module-4">
+                <div class="flex flex-col sm:flex-row">
+                  <div class="sm:w-72 shrink-0 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1558494949-ef010cbd31ed?w=600&h=400&fit=crop" alt="网络节点与图结构" data-category="商业科技" class="w-full h-48 sm:h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                  </div>
+                  <div class="p-5 flex flex-col justify-between flex-1">
+                    <div>
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-warning/15 text-warning">进阶</span>
+                        <span class="text-xs text-on-surface-variant">8 节课</span>
+                      </div>
+                      <h3 class="text-base font-semibold text-on-surface mb-2 group-hover:text-primary transition-colors">LangGraph 状态机与图编排</h3>
+                      <p class="text-sm text-on-surface-variant leading-relaxed line-clamp-3">学习使用 LangGraph 构建有状态的 Agent 工作流。掌握节点、边、条件路由的核心概念，实现循环推理、人机协作、断点恢复等高级特性。对比 LangChain Agent 与 LangGraph Agent 的适用场景。</p>
+                    </div>
+                    <div class="flex items-center gap-2 mt-3 flex-wrap">
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">LangGraph</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">State Machine</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">Workflow</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <!-- 模块-5：Tool Use 与函数调用 -->
+              <article class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-shadow cursor-pointer group" id="module-5">
+                <div class="flex flex-col sm:flex-row">
+                  <div class="sm:w-72 shrink-0 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1504868584819-f8e8b4b6d743?w=600&h=400&fit=crop" alt="工具调用与API连接" data-category="商业科技" class="w-full h-48 sm:h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                  </div>
+                  <div class="p-5 flex flex-col justify-between flex-1">
+                    <div>
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-warning/15 text-warning">进阶</span>
+                        <span class="text-xs text-on-surface-variant">7 节课</span>
+                      </div>
+                      <h3 class="text-base font-semibold text-on-surface mb-2 group-hover:text-primary transition-colors">Tool Use 与函数调用机制</h3>
+                      <p class="text-sm text-on-surface-variant leading-relaxed line-clamp-3">深入理解 Function Calling 的底层原理，学习为 Agent 定义和注册自定义工具。掌握工具描述规范、参数校验、错误处理，实现 Agent 与外部 API、数据库、文件系统的无缝交互。</p>
+                    </div>
+                    <div class="flex items-center gap-2 mt-3 flex-wrap">
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">Function Calling</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">Tool Use</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">API 集成</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <!-- 模块-6：多 Agent 协作系统 -->
+              <article class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-shadow cursor-pointer group" id="module-6">
+                <div class="flex flex-col sm:flex-row">
+                  <div class="sm:w-72 shrink-0 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=600&h=400&fit=crop" alt="多智能体协作网络" data-category="商业科技" class="w-full h-48 sm:h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                  </div>
+                  <div class="p-5 flex flex-col justify-between flex-1">
+                    <div>
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-error/15 text-error">高级</span>
+                        <span class="text-xs text-on-surface-variant">9 节课</span>
+                      </div>
+                      <h3 class="text-base font-semibold text-on-surface mb-2 group-hover:text-primary transition-colors">多 Agent 协作系统设计</h3>
+                      <p class="text-sm text-on-surface-variant leading-relaxed line-clamp-3">探索多 Agent 系统的协作模式：层级式、对等式、竞争式。使用 AutoGen 和 CrewAI 框架构建多 Agent 团队，实现任务分解、角色分配、结果汇总。学习 Agent 间通信协议与冲突解决策略。</p>
+                    </div>
+                    <div class="flex items-center gap-2 mt-3 flex-wrap">
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">多Agent</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">AutoGen</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">CrewAI</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">协作模式</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <!-- 模块-7：Agent 记忆与上下文管理 -->
+              <article class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-shadow cursor-pointer group" id="module-7">
+                <div class="flex flex-col sm:flex-row">
+                  <div class="sm:w-72 shrink-0 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1633356122102-3fe601e05bd2?w=600&h=400&fit=crop" alt="记忆存储与上下文管理" data-category="商业科技" class="w-full h-48 sm:h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                  </div>
+                  <div class="p-5 flex flex-col justify-between flex-1">
+                    <div>
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-warning/15 text-warning">进阶</span>
+                        <span class="text-xs text-on-surface-variant">6 节课</span>
+                      </div>
+                      <h3 class="text-base font-semibold text-on-surface mb-2 group-hover:text-primary transition-colors">Agent 记忆与上下文管理</h3>
+                      <p class="text-sm text-on-surface-variant leading-relaxed line-clamp-3">掌握 Agent 的短期记忆、长期记忆与情景记忆机制。学习对话历史压缩、摘要记忆、知识图谱记忆等实现方案。解决长对话中的上下文丢失问题，让 Agent 具备真正的持续学习能力。</p>
+                    </div>
+                    <div class="flex items-center gap-2 mt-3 flex-wrap">
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">Memory</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">Context Window</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">知识图谱</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <!-- 模块-8：Agent 部署与生产实践 -->
+              <article class="bg-surface rounded-lg shadow-card overflow-hidden hover:shadow-float transition-shadow cursor-pointer group" id="module-8">
+                <div class="flex flex-col sm:flex-row">
+                  <div class="sm:w-72 shrink-0 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=600&h=400&fit=crop" alt="部署与监控面板" data-category="商业科技" class="w-full h-48 sm:h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                  </div>
+                  <div class="p-5 flex flex-col justify-between flex-1">
+                    <div>
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-error/15 text-error">高级</span>
+                        <span class="text-xs text-on-surface-variant">8 节课</span>
+                      </div>
+                      <h3 class="text-base font-semibold text-on-surface mb-2 group-hover:text-primary transition-colors">Agent 部署与生产实践</h3>
+                      <p class="text-sm text-on-surface-variant leading-relaxed line-clamp-3">将 Agent 从开发环境推向生产。学习使用 Dify 低代码平台快速搭建 Agent 应用，掌握 Docker 容器化部署、API 网关配置、日志监控与成本优化。了解 Agent 的安全防护、幻觉治理与评估体系。</p>
+                    </div>
+                    <div class="flex items-center gap-2 mt-3 flex-wrap">
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">Dify</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">Docker</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">监控</span>
+                      <span class="px-2 py-0.5 text-xs rounded-sm bg-surface-container text-on-surface-variant font-medium">生产部署</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+            </div>
+          </div>
+
+          <!-- 实战项目区域 -->
+          <div class="mb-8">
+            <h2 class="text-base font-semibold text-on-surface mb-6 flex items-center gap-2">
+              <i data-lucide="rocket" class="w-4 h-4 text-primary"></i>实战项目
+            </h2>
+
+            <div class="grid grid-cols-3 gap-4">
+
+              <!-- 实战项目-1：天气查询 Agent -->
+              <div class="bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow cursor-pointer group" id="project-weather">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <i data-lucide="cloud-sun" class="w-5 h-5 text-primary"></i>
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-semibold text-on-surface group-hover:text-primary transition-colors">天气查询 Agent</h3>
+                    <span class="text-xs text-on-surface-variant">入门级</span>
+                  </div>
+                </div>
+                <p class="text-xs text-on-surface-variant leading-relaxed mb-3">构建一个能理解自然语言天气查询的 Agent，通过调用天气 API 获取实时数据并以友好格式返回结果。学习 Tool Use 和 Prompt 模板的基础应用。</p>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="px-1.5 py-0.5 text-[10px] rounded-sm bg-surface-container text-on-surface-variant font-medium">LangChain</span>
+                  <span class="px-1.5 py-0.5 text-[10px] rounded-sm bg-surface-container text-on-surface-variant font-medium">API 调用</span>
+                  <span class="px-1.5 py-0.5 text-[10px] rounded-sm bg-surface-container text-on-surface-variant font-medium">Tool</span>
+                </div>
+              </div>
+
+              <!-- 实战项目-2：新闻摘要 Agent -->
+              <div class="bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow cursor-pointer group" id="project-news">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                    <i data-lucide="newspaper" class="w-5 h-5 text-warning"></i>
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-semibold text-on-surface group-hover:text-primary transition-colors">新闻摘要 Agent</h3>
+                    <span class="text-xs text-on-surface-variant">进阶级</span>
+                  </div>
+                </div>
+                <p class="text-xs text-on-surface-variant leading-relaxed mb-3">构建一个能自动抓取新闻源、提取关键信息并生成结构化摘要的 Agent。结合 RAG 技术实现新闻知识库的构建与检索，输出多格式摘要报告。</p>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="px-1.5 py-0.5 text-[10px] rounded-sm bg-surface-container text-on-surface-variant font-medium">RAG</span>
+                  <span class="px-1.5 py-0.5 text-[10px] rounded-sm bg-surface-container text-on-surface-variant font-medium">LangChain</span>
+                  <span class="px-1.5 py-0.5 text-[10px] rounded-sm bg-surface-container text-on-surface-variant font-medium">摘要生成</span>
+                </div>
+              </div>
+
+              <!-- 实战项目-3：办公助手 Agent -->
+              <div class="bg-surface rounded-lg shadow-card p-5 hover:shadow-float transition-shadow cursor-pointer group" id="project-office">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+                    <i data-lucide="briefcase" class="w-5 h-5 text-success"></i>
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-semibold text-on-surface group-hover:text-primary transition-colors">办公助手 Agent</h3>
+                    <span class="text-xs text-on-surface-variant">高级</span>
+                  </div>
+                </div>
+                <p class="text-xs text-on-surface-variant leading-relaxed mb-3">构建一个多 Agent 协作的智能办公助手，集成日程管理、邮件撰写、文档分析、会议纪要等能力。使用 LangGraph 编排复杂工作流，实现人机协作与任务自动分配。</p>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="px-1.5 py-0.5 text-[10px] rounded-sm bg-surface-container text-on-surface-variant font-medium">多Agent</span>
+                  <span class="px-1.5 py-0.5 text-[10px] rounded-sm bg-surface-container text-on-surface-variant font-medium">LangGraph</span>
+                  <span class="px-1.5 py-0.5 text-[10px] rounded-sm bg-surface-container text-on-surface-variant font-medium">Workflow</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 右侧边栏 -->
+        <aside class="w-64 shrink-0">
+
+          <!-- 学习进度 -->
+          <div class="bg-surface rounded-lg shadow-card p-5 mb-5">
+            <h3 class="text-sm font-semibold text-on-surface mb-4 flex items-center gap-2">
+              <i data-lucide="target" class="w-4 h-4 text-primary"></i>学习进度
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between items-center mb-1.5">
+                  <span class="text-xs text-on-surface-variant">总体进度</span>
+                  <span class="text-xs font-medium text-primary">35%</span>
+                </div>
+                <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+                  <div class="h-full bg-primary rounded-full transition-all" style="width: 35%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between items-center mb-1.5">
+                  <span class="text-xs text-on-surface-variant">入门模块</span>
+                  <span class="text-xs font-medium text-success">72%</span>
+                </div>
+                <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+                  <div class="h-full bg-success rounded-full transition-all" style="width: 72%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between items-center mb-1.5">
+                  <span class="text-xs text-on-surface-variant">进阶模块</span>
+                  <span class="text-xs font-medium text-warning">18%</span>
+                </div>
+                <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+                  <div class="h-full bg-warning rounded-full transition-all" style="width: 18%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between items-center mb-1.5">
+                  <span class="text-xs text-on-surface-variant">高级模块</span>
+                  <span class="text-xs font-medium text-on-surface-variant">0%</span>
+                </div>
+                <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+                  <div class="h-full bg-on-surface-variant/30 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-outline/10">
+              <div class="flex justify-between text-xs">
+                <span class="text-on-surface-variant">已完成</span>
+                <span class="text-on-surface font-medium">22 / 62 节课</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 技术栈标签云 -->
+          <div class="bg-surface rounded-lg shadow-card p-5 mb-5">
+            <h3 class="text-sm font-semibold text-on-surface mb-4 flex items-center gap-2">
+              <i data-lucide="tags" class="w-4 h-4 text-primary"></i>技术栈
+            </h3>
+            <div class="flex flex-wrap gap-2">
+              <span class="px-2.5 py-1 text-xs rounded-md bg-primary/10 text-primary font-medium cursor-pointer hover:bg-primary/20 transition-colors">LangChain</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-primary/10 text-primary font-medium cursor-pointer hover:bg-primary/20 transition-colors">LangGraph</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-surface-container text-on-surface-variant font-medium cursor-pointer hover:bg-surface-container-high transition-colors">AutoGen</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-surface-container text-on-surface-variant font-medium cursor-pointer hover:bg-surface-container-high transition-colors">Dify</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-surface-container text-on-surface-variant font-medium cursor-pointer hover:bg-surface-container-high transition-colors">ChromaDB</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-surface-container text-on-surface-variant font-medium cursor-pointer hover:bg-surface-container-high transition-colors">FAISS</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-primary/10 text-primary font-medium cursor-pointer hover:bg-primary/20 transition-colors">RAG</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-surface-container text-on-surface-variant font-medium cursor-pointer hover:bg-surface-container-high transition-colors">CrewAI</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-surface-container text-on-surface-variant font-medium cursor-pointer hover:bg-surface-container-high transition-colors">OpenAI API</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-surface-container text-on-surface-variant font-medium cursor-pointer hover:bg-surface-container-high transition-colors">Function Calling</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-surface-container text-on-surface-variant font-medium cursor-pointer hover:bg-surface-container-high transition-colors">Embedding</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-surface-container text-on-surface-variant font-medium cursor-pointer hover:bg-surface-container-high transition-colors">Prompt Eng</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-surface-container text-on-surface-variant font-medium cursor-pointer hover:bg-surface-container-high transition-colors">Vector DB</span>
+              <span class="px-2.5 py-1 text-xs rounded-md bg-surface-container text-on-surface-variant font-medium cursor-pointer hover:bg-surface-container-high transition-colors">Docker</span>
+            </div>
+          </div>
+
+          <!-- 推荐学习资源 -->
+          <div class="bg-surface rounded-lg shadow-card p-5">
+            <h3 class="text-sm font-semibold text-on-surface mb-4 flex items-center gap-2">
+              <i data-lucide="book-open" class="w-4 h-4 text-primary"></i>推荐资源
+            </h3>
+            <div class="space-y-3">
+              <a href="#" class="block group" id="resource-1">
+                <div class="text-sm font-medium text-on-surface group-hover:text-primary transition-colors leading-snug">LangChain 官方文档</div>
+                <div class="text-xs text-on-surface-variant mt-0.5">python.langchain.com</div>
+              </a>
+              <div class="border-t border-outline/10"></div>
+              <a href="#" class="block group" id="resource-2">
+                <div class="text-sm font-medium text-on-surface group-hover:text-primary transition-colors leading-snug">LangGraph 入门指南</div>
+                <div class="text-xs text-on-surface-variant mt-0.5">langchain-ai.github.io/langgraph</div>
+              </a>
+              <div class="border-t border-outline/10"></div>
+              <a href="#" class="block group" id="resource-3">
+                <div class="text-sm font-medium text-on-surface group-hover:text-primary transition-colors leading-snug">Building AI Agents 实战教程</div>
+                <div class="text-xs text-on-surface-variant mt-0.5">github.com/agent-tutorial</div>
+              </a>
+              <div class="border-t border-outline/10"></div>
+              <a href="#" class="block group" id="resource-4">
+                <div class="text-sm font-medium text-on-surface group-hover:text-primary transition-colors leading-snug">Dify 平台使用手册</div>
+                <div class="text-xs text-on-surface-variant mt-0.5">docs.dify.ai</div>
+              </a>
+              <div class="border-t border-outline/10"></div>
+              <a href="#" class="block group" id="resource-5">
+                <div class="text-sm font-medium text-on-surface group-hover:text-primary transition-colors leading-snug">RAG 技术深度解析</div>
+                <div class="text-xs text-on-surface-variant mt-0.5">blog.rag-guide.dev</div>
+              </a>
+            </div>
+          </div>
+
+        </aside>
+
+      </div>
+
+    </div>
+  </main>
+  <!-- @main-content:end -->
+
+  <script>
+  $(function() {
+    // 课程模块卡片点击 → 跳转课程详情
+    $('#module-1, #module-2, #module-3, #module-4, #module-5, #module-6, #module-7, #module-8').on('click', function() {
+      var moduleId = $(this).attr('id').replace('module-', '');
+      window.location.href = 'course-detail.html?id=' + moduleId;
+    });
+
+    // 实战项目卡片点击 → 跳转练习页
+    $('#project-weather, #project-news, #project-office').on('click', function() {
+      var projectId = $(this).attr('id').replace('project-', '');
+      window.location.href = 'practice.html?project=' + projectId;
+    });
+
+    // 技术栈标签点击 → 筛选对应课程（简单交互：高亮选中标签）
+    // 后续应实现：根据选中的标签筛选下方课程模块列表，仅展示包含对应标签的模块
+    $('.flex.flex-wrap.gap-2 span').on('click', function() {
+      $(this).toggleClass('bg-primary/10 text-primary').toggleClass('bg-surface-container text-on-surface-variant');
+    });
+  });
+  </script>
+  <script>lucide.createIcons();</script>
+</body>
+
+</html>

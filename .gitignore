@@ -1,0 +1,97 @@
+﻿# ============================================================
+# CodeForge Academy / AgenticLearningSystem - .gitignore
+# ============================================================
+
+# ---- Secrets & environment ----
+.env
+.env.local
+.env.*.local
+!.env.example
+*.pem
+*.key
+
+# ---- Runtime / PID / logs ----
+.run/
+logs/
+*.log
+*.log.*
+*.pid
+*.seed
+*.pid.lock
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.iml
+*.tmp
+*.temp
+
+# ============================================================
+# Backend (Go)
+# ============================================================
+# Go toolchain caches kept inside the project (never global)
+backend/.gomodcache/
+backend/.gocache/
+backend/.gopath/
+backend/.venv/
+# stray nested duplicate caches created by accident
+backend/backend/
+# compiled artifacts
+backend/bin/
+*.test
+*.out
+
+# uploads (keep the dir, ignore content)
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+
+# Python (sandbox runtime inside backend)
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ============================================================
+# Frontend (Next.js / pnpm)
+# ============================================================
+frontend/node_modules/
+frontend/.next/
+frontend/.pnpm-store/
+frontend/.corepack/
+frontend/.coze-logs/
+frontend/.coze-logs/
+# stray nested duplicate caches created by accident
+frontend/frontend/
+# TypeScript build info
+*.tsbuildinfo
+# env
+frontend/.env.local
+# misc caches
+.eslintcache
+.stylelintcache
+.cache/
+.parcel-cache/
+.vercel
+.turbo/
+coverage/
+
+# ============================================================
+# Indexes / misc
+# ============================================================
+.codegraph/
+.searxng/cache/
+.searxng/data/
+
+# lock files for other package managers (we use pnpm-lock.yaml)
+package-lock.json
+yarn.lock

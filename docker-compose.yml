@@ -1,0 +1,75 @@
+﻿name: codeforge-infrastructure
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: codeforge-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-codeforge}
+      POSTGRES_USER: ${POSTGRES_USER:-codeforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-codeforge}
+    ports:
+      - "5432:5432"
+    volumes:
+      - codeforge_postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations/000_extensions.sql:/docker-entrypoint-initdb.d/000_extensions.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codeforge} -d ${POSTGRES_DB:-codeforge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: codeforge-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - codeforge_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: codeforge-searxng
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  minio:
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
+    container_name: codeforge-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-codeforge}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-codeforge123}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - codeforge_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  codeforge_postgres_data:
+  codeforge_redis_data:
+  codeforge_minio_data:
+

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/jquery/jquery-3.7.1.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/lucide/lucide-1.11.0.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/tailwindcss/tailwindcss-browser-4.2.4.min.js"></script>
+
+  <style type="text/tailwindcss">
+    @theme {
+      /* === 品牌色 === */
+      --color-primary:              #2563EB;
+      --color-primary-container:    #DBEAFE;
+      --color-on-primary:           #ffffff;
+      /* === 背景 / 表面 === */
+      --color-background:                 #FFFFFF;
+      --color-surface-container-lowest:   #FAFAFA;
+      --color-surface:                    #FFFFFF;
+      --color-surface-container:          #F4F4F5;
+      --color-surface-container-high:     #E4E4E7;
+      --color-surface-container-highest:  #D4D4D8;
+      /* === 文字 === */
+      --color-on-surface:           #18181B;
+      --color-on-surface-variant:   #71717A;
+      /* === 功能色 === */
+      --color-success:  #22c55e;
+      --color-error:    #ef4444;
+      --color-warning:  #f59e0b;
+      /* === 边框 === */
+      --color-outline:          #E4E4E7;
+      --color-outline-variant:  #F4F4F5;
+      /* === 圆角 === */
+      --radius-sm:   0.375rem;
+      --radius-md:   0.5rem;
+      --radius-lg:   0.75rem;
+      --radius-xl:   1rem;
+      --radius-2xl:  1.5rem;
+      --radius-full: 9999px;
+      /* === 阴影 === */
+      --shadow-card:   0 2px 8px rgba(0,0,0,0.08);
+      --shadow-float:  0 10px 25px rgba(0,0,0,0.10);
+      --shadow-dialog: 0 25px 50px rgba(0,0,0,0.12);
+      /* === 字体 === */
+      --font-sans: "Inter", "Noto Sans SC", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+    }
+    @utility prose-article {
+      h2 { font-size: 1.5rem; font-weight: 700; color: var(--color-on-surface); margin-top: 2.5rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--color-outline/30); }
+      h3 { font-size: 1.2rem; font-weight: 600; color: var(--color-on-surface); margin-top: 2rem; margin-bottom: 0.75rem; }
+      p { font-size: 1rem; line-height: 1.85; color: #3f3f46; margin-bottom: 1.25rem; }
+      strong { color: var(--color-on-surface); font-weight: 600; }
+      ul, ol { margin-bottom: 1.25rem; padding-left: 1.5rem; }
+      li { font-size: 1rem; line-height: 1.85; color: #3f3f46; margin-bottom: 0.35rem; list-style-type: disc; }
+    }
+  </style>
+</head>
+
+<body class="bg-background text-on-surface font-sans">
+
+  <!-- @nav:start 导航组件，不需要的页面则不要复制此段（从 @nav:start 到 @nav:end） -->
+  <header class="bg-surface/80 backdrop-blur-sm sticky top-0 z-40 h-14 flex items-center justify-between px-6 border-b border-outline/20">
+    <a href="home.html" class="flex items-center gap-2.5">
+      <i data-lucide="braces" class="text-primary w-5 h-5"></i>
+      <span class="font-bold text-lg text-on-surface">CodeForge</span>
+      <span class="text-[10px] text-on-primary bg-primary px-1.5 py-0.5 rounded-sm font-medium">Academy</span>
+    </a>
+    <nav class="flex items-center gap-1">
+      <a href="home.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">首页</a>
+      <a href="rust.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">Rust</a>
+      <a href="algorithm.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">算法</a>
+      <a href="agent.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">Agent</a>
+      <a href="practice.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">练习</a>
+      <a href="learning-path.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">路径</a>
+    </nav>
+    <div class="flex items-center gap-3">
+      <button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+        <i data-lucide="search" class="w-4 h-4"></i>
+      </button>
+      <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary cursor-pointer hover:bg-primary/20 transition-colors">初</div>
+    </div>
+  </header>
+  <div class="flex" style="height: calc(100vh - 3.5rem)">
+    <aside class="w-52 shrink-0 bg-surface-container-lowest/50 border-r border-outline/10 overflow-y-auto">
+      <nav class="p-3 space-y-1">
+        <a href="home.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="home" class="w-4 h-4"></i>首页
+        </a>
+        <a href="rust.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md bg-primary/10 text-primary font-medium text-sm">
+          <i data-lucide="cog" class="w-4 h-4"></i>Rust 编程
+        </a>
+        <a href="algorithm.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="binary" class="w-4 h-4"></i>数据结构与算法
+        </a>
+        <a href="agent.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="bot" class="w-4 h-4"></i>AI Agent
+        </a>
+        <div class="my-2 mx-3 border-t border-outline/10"></div>
+        <a href="practice.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="terminal" class="w-4 h-4"></i>在线练习
+        </a>
+        <a href="learning-path.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="map" class="w-4 h-4"></i>学习路径
+        </a>
+        <a href="profile.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="user" class="w-4 h-4"></i>个人中心
+        </a>
+      </nav>
+      <!-- 小板报：学习日历 -->
+      <div class="mx-3 mt-4 p-3 bg-surface rounded-lg border border-outline/10">
+        <div class="text-xs font-medium text-on-surface-variant mb-2">学习小板报</div>
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between"><span class="text-on-surface-variant">今日</span><span class="text-primary font-medium">已学 45 分钟</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本周</span><span class="text-on-surface">5/7 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本月</span><span class="text-on-surface">18/30 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">连续打卡</span><span class="text-error font-medium">15 天</span></div>
+        </div>
+      </div>
+    </aside>
+  <!-- @nav:end 导航组件，不需要的页面则不要复制此段 -->
+
+  <main class="flex-1 min-w-0 overflow-y-auto bg-background">
+    <!-- @main-content:start -->
+
+    <!-- 文章容器 -->
+    <div class="max-w-6xl mx-auto px-8 py-8">
+
+      <!-- 面包屑导航 -->
+      <nav id="breadcrumb" class="flex items-center gap-1.5 text-sm text-on-surface-variant mb-8">
+        <a href="home.html" class="hover:text-primary transition-colors">首页</a>
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-on-surface-variant/40"></i>
+        <a href="rust.html" class="hover:text-primary transition-colors">Rust 编程</a>
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-on-surface-variant/40"></i>
+        <span class="text-on-surface font-medium">第3章：所有权系统</span>
+      </nav>
+
+      <!-- 文章标题区域 -->
+      <header class="mb-10">
+        <h1 id="article-title" class="text-3xl font-bold text-on-surface leading-tight mb-5">所有权概念：理解 Rust 的核心机制</h1>
+        <div class="flex items-center gap-2 mb-5">
+          <span class="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-primary/10 text-primary">Rust</span>
+          <span class="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-success/15 text-success">进阶</span>
+        </div>
+        <div class="flex items-center gap-5 text-sm text-on-surface-variant">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">陈</div>
+            <span class="font-medium text-on-surface">陈教授</span>
+          </div>
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+            2024-03-15
+          </span>
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+            12 分钟
+          </span>
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+            2,847 次阅读
+          </span>
+        </div>
+      </header>
+
+      <!-- 正文 + 右侧目录 两栏布局 -->
+      <div class="flex gap-10 items-start">
+
+        <!-- 左侧正文内容 -->
+        <article class="flex-1 min-w-0 max-w-3xl prose-article">
+
+          <!-- 引言段落 -->
+          <p>所有权（Ownership）是 Rust 中最独特的概念，也是理解 Rust 核心机制的关键。它让 Rust 能够在没有垃圾回收（GC）的情况下保证内存安全，是 Rust 区别于其他大多数编程语言的标志性特性。深入理解所有权系统，对于掌握 Rust 的内存管理、并发安全等高级特性至关重要。</p>
+          <p>本章将系统地介绍所有权的概念、规则以及相关的借用和引用机制，帮助你建立起对 Rust 内存模型的完整认知。</p>
+
+          <!-- 3.1 栈与堆内存 -->
+          <h2 id="section-1">3.1 栈与堆内存</h2>
+          <p>在讨论所有权之前，我们需要先了解 Rust 的两种内存区域：<strong>栈（Stack）</strong>和<strong>堆（Heap）</strong>。理解它们的区别是理解所有权的基础。</p>
+          <p>栈是一种后进先出（LIFO）的数据结构，所有数据的大小必须在编译时确定。栈的操作速度极快，因为数据的存取只需要操作栈顶指针。而堆内存则更加灵活，适合存储大小未知或运行时才能确定的数据。</p>
+
+          <!-- 代码块 1：基础变量 -->
+          <div class="relative group my-6">
+            <div class="absolute top-0 right-0 px-3 py-1.5 text-xs text-zinc-500 font-mono bg-zinc-800/80 rounded-bl-md z-10">rust</div>
+            <pre class="bg-[#1e1e2e] text-[#cdd6f4] rounded-lg p-5 overflow-x-auto text-sm leading-relaxed font-mono"><span class="text-[#cba6f7]">fn</span> <span class="text-[#89b4fa]">main</span>() {
+    <span class="text-[#6c7086]">// 栈上分配 - 固定大小的数据类型</span>
+    <span class="text-[#cba6f7]">let</span> x = <span class="text-[#fab387">42</span>;           <span class="text-[#6c7086]">// i32，存储在栈上</span>
+    <span class="text-[#cba6f7]">let</span> y = <span class="text-[#a6e3a1]">true</span>;         <span class="text-[#6c7086]">// bool，存储在栈上</span>
+    <span class="text-[#cba6f7]">let</span> z = <span class="text-[#a6e3a1">"hello"</span>;      <span class="text-[#6c7086]">// &str，字符串字面量存储在栈上</span>
+
+    <span class="text-[#6c7086]">// 堆上分配 - 动态大小的数据类型</span>
+    <span class="text-[#cba6f7]">let</span> s1 = <span class="text-[#89b4fa]">String</span>::<span class="text-[#89b4fa]">from</span>(<span class="text-[#a6e3a1]">"hello"</span>);  <span class="text-[#6c7086]">// String 数据存储在堆上</span>
+    <span class="text-[#cba6f7]">let</span> s2 = s1.<span class="text-[#89b4fa]">clone</span>();              <span class="text-[#6c7086]">// 深拷贝，在堆上分配新内存</span>
+
+    <span class="text-[#89b4fa]">println!</span>(<span class="text-[#a6e3a1]">"s1 = {}, s2 = {}"</span>, s1, s2);
+}</pre>
+          </div>
+
+          <!-- 知识点提示框 -->
+          <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg my-6">
+            <div class="flex items-center gap-2 mb-2">
+              <i data-lucide="lightbulb" class="w-4 h-4 text-blue-500"></i>
+              <span class="font-semibold text-blue-800 text-sm">知识点</span>
+            </div>
+            <p class="text-sm text-blue-700 leading-relaxed mb-0">栈的访问速度远快于堆，因为栈上的数据地址是连续的，且栈操作只是简单的指针移动。编译器在编译时会自动优化栈上数据的分配和释放，这也是为什么 Rust 推荐在可能的情况下优先使用栈上数据类型。</p>
+          </div>
+
+          <p>当你在栈上分配数据时，编译器会在编译阶段就确定所需的空间大小，并在函数返回时自动释放。而堆上的数据则需要通过所有权系统来追踪其生命周期。</p>
+
+          <!-- 图片占位 -->
+          <figure class="my-8">
+            <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c" alt="代码在显示器上展示内存结构" data-category="商业科技" class="w-full rounded-lg shadow-card">
+            <figcaption class="text-center text-sm text-on-surface-variant mt-3">图 3-1：栈与堆内存分配示意图</figcaption>
+          </figure>
+
+          <!-- 3.2 所有权规则 -->
+          <h2 id="section-2">3.2 所有权规则</h2>
+          <p>Rust 的所有权系统建立在三条核心规则之上。这些规则在编译时由借用检查器（borrow checker）强制执行，是 Rust 内存安全的基石：</p>
+          <ul>
+            <li><strong>每个值都有且仅有一个所有者（owner）</strong>——变量绑定是值与所有者之间的关系</li>
+            <li><strong>同一时刻只能有一个所有者</strong>——当赋值或传参时，所有权会发生"移动"</li>
+            <li><strong>当所有者离开作用域，值被自动释放</strong>——这就是 Rust 无需 GC 的原因</li>
+          </ul>
+          <p>这三条规则看似简单，却构成了 Rust 内存安全的核心保障。让我们通过代码来具体理解这些规则是如何工作的。</p>
+
+          <!-- 代码块 2：所有权移动 -->
+          <div class="relative group my-6">
+            <div class="absolute top-0 right-0 px-3 py-1.5 text-xs text-zinc-500 font-mono bg-zinc-800/80 rounded-bl-md z-10">rust</div>
+            <pre class="bg-[#1e1e2e] text-[#cdd6f4] rounded-lg p-5 overflow-x-auto text-sm leading-relaxed font-mono"><span class="text-[#cba6f7]">fn</span> <span class="text-[#89b4fa]">main</span>() {
+    <span class="text-[#cba6f7]">let</span> s1 = <span class="text-[#89b4fa]">String</span>::<span class="text-[#89b4fa]">from</span>(<span class="text-[#a6e3a1]">"hello"</span>);
+    <span class="text-[#cba6f7]">let</span> s2 = s1;  <span class="text-[#6c7086]">// 所有权从 s1 移动到 s2</span>
+
+    <span class="text-[#6c7086]">// println!("{}", s1);  // ❌ 编译错误！s1 已经不再有效</span>
+    <span class="text-[#89b4fa]">println!</span>(<span class="text-[#a6e3a1]">"{}"</span>, s2);  <span class="text-[#6c7086]">// ✅ 正确，s2 是当前的所有者</span>
+}</pre>
+          </div>
+
+          <!-- 警告提示框 -->
+          <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg my-6">
+            <div class="flex items-center gap-2 mb-2">
+              <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500"></i>
+              <span class="font-semibold text-amber-800 text-sm">常见错误</span>
+            </div>
+            <p class="text-sm text-amber-700 leading-relaxed mb-0">初学者最常犯的错误之一就是"使用已移动的值"。当你将一个 <code class="bg-amber-100 px-1 py-0.5 rounded text-xs font-mono">String</code> 类型赋值给另一个变量时，原变量将不再有效。如果需要保留原变量，请使用 <code class="bg-amber-100 px-1 py-0.5 rounded text-xs font-mono">.clone()</code> 方法进行深拷贝。</p>
+          </div>
+
+          <p>需要注意的是，对于实现了 <code class="bg-surface-container px-1.5 py-0.5 rounded text-sm font-mono text-primary">Copy</code> trait 的类型（如整数、浮点数、布尔值等），赋值操作不会发生移动，而是进行位拷贝。这是因为这些类型的数据完全存储在栈上，拷贝的代价极低。</p>
+
+          <!-- 3.3 变量作用域 -->
+          <h2 id="section-3">3.3 变量作用域</h2>
+          <p>作用域是理解所有权的关键概念之一。在 Rust 中，变量在声明后的作用域内有效，当变量离开作用域时，Rust 会自动调用 <code class="bg-surface-container px-1.5 py-0.5 rounded text-sm font-mono text-primary">drop</code> 函数来释放其占用的资源。</p>
+          <p>Rust 的作用域规则与其他语言类似，但关键区别在于：当拥有堆上数据的变量离开作用域时，即使 Rust 有自动释放机制，数据的清理也是确定性的——不需要等待垃圾回收器运行。</p>
+
+          <!-- 代码块 3：作用域示例 -->
+          <div class="relative group my-6">
+            <div class="absolute top-0 right-0 px-3 py-1.5 text-xs text-zinc-500 font-mono bg-zinc-800/80 rounded-bl-md z-10">rust</div>
+            <pre class="bg-[#1e1e2e] text-[#cdd6f4] rounded-lg p-5 overflow-x-auto text-sm leading-relaxed font-mono"><span class="text-[#cba6f7]">fn</span> <span class="text-[#89b4fa]">main</span>() {
+    {
+        <span class="text-[#cba6f7]">let</span> s = <span class="text-[#89b4fa]">String</span>::<span class="text-[#89b4fa]">from</span>(<span class="text-[#a6e3a1]">"hello"</span>);  <span class="text-[#6c7086]">// s 在此作用域内有效</span>
+        <span class="text-[#89b4fa]">println!</span>(<span class="text-[#a6e3a1]">"{}"</span>, s);              <span class="text-[#6c7086]">// 可以正常使用</span>
+    }  <span class="text-[#6c7086]">// 作用域结束，s 被 drop，内存被释放</span>
+
+    <span class="text-[#6c7086]">// println!("{}", s);  // ❌ 编译错误！s 已不存在</span>
+}</pre>
+          </div>
+
+          <p>这种确定性的资源管理方式，使得 Rust 程序在运行时不会有不可预测的内存清理行为，这对于实时系统和嵌入式开发尤为重要。</p>
+
+          <!-- 3.4 移动语义 -->
+          <h2 id="section-4">3.4 移动语义</h2>
+          <p>移动语义是 Rust 所有权系统的核心机制之一。当一个值被赋给另一个变量或作为参数传递给函数时，默认行为是<strong>移动</strong>而非复制。这意味着原始变量将失去对该值的所有权。</p>
+          <p>移动语义的设计目的是防止"双重释放"（double free）问题。如果两个变量指向同一块堆内存，当它们各自离开作用域时，同一块内存会被释放两次，这将导致未定义行为。</p>
+
+          <!-- 代码块 4：函数传参中的移动 -->
+          <div class="relative group my-6">
+            <div class="absolute top-0 right-0 px-3 py-1.5 text-xs text-zinc-500 font-mono bg-zinc-800/80 rounded-bl-md z-10">rust</div>
+            <pre class="bg-[#1e1e2e] text-[#cdd6f4] rounded-lg p-5 overflow-x-auto text-sm leading-relaxed font-mono"><span class="text-[#cba6f7]">fn</span> <span class="text-[#89b4fa]">take_ownership</span>(s: <span class="text-[#89b4fa]">String</span>) {
+    <span class="text-[#89b4fa]">println!</span>(<span class="text-[#a6e3a1]">"获取了所有权: {}"</span>, s);
+}  <span class="text-[#6c7086]">// s 离开作用域，内存被释放</span>
+
+<span class="text-[#cba6f7]">fn</span> <span class="text-[#89b4fa]">give_ownership</span>() -> <span class="text-[#89b4fa]">String</span> {
+    <span class="text-[#cba6f7]">let</span> s = <span class="text-[#89b4fa]">String</span>::<span class="text-[#89b4fa]">from</span>(<span class="text-[#a6e3a1]">"hello"</span>);
+    s  <span class="text-[#6c7086]">// 移动所有权到调用者</span>
+}
+
+<span class="text-[#cba6f7]">fn</span> <span class="text-[#89b4fa]">main</span>() {
+    <span class="text-[#cba6f7]">let</span> s1 = <span class="text-[#89b4fa]">give_ownership</span>();     <span class="text-[#6c7086]">// s1 获得所有权</span>
+    <span class="text-[#89b4fa]">take_ownership</span>(s1);           <span class="text-[#6c7086]">// 所有权移动到函数参数</span>
+    <span class="text-[#6c7086]">// println!("{}", s1);  // ❌ s1 已移动，不再有效</span>
+}</pre>
+          </div>
+
+          <!-- 知识点提示框 -->
+          <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg my-6">
+            <div class="flex items-center gap-2 mb-2">
+              <i data-lucide="lightbulb" class="w-4 h-4 text-blue-500"></i>
+              <span class="font-semibold text-blue-800 text-sm">设计哲学</span>
+            </div>
+            <p class="text-sm text-blue-700 leading-relaxed mb-0">Rust 的移动语义体现了"明确优于隐式"的设计哲学。在其他语言中，赋值操作可能悄悄触发浅拷贝或深拷贝，而 Rust 强制你明确表达意图：是移动所有权，还是通过克隆创建副本，亦或是通过引用来借用。</p>
+          </div>
+
+          <!-- 3.5 引用与借用 -->
+          <h2 id="section-5">3.5 引用与借用</h2>
+          <p>如果每次都需要转移所有权，编程将变得非常不便。Rust 提供了<strong>引用（Reference）</strong>机制，允许你在不获取所有权的情况下访问数据，这被称为<strong>借用（Borrowing）</strong>。</p>
+          <p>引用分为不可变引用 <code class="bg-surface-container px-1.5 py-0.5 rounded text-sm font-mono text-primary">&T</code> 和可变引用 <code class="bg-surface-container px-1.5 py-0.5 rounded text-sm font-mono text-primary">&mut T</code>。Rust 的借用规则确保了数据竞争的安全性：</p>
+          <ul>
+            <li>在同一时刻，你要么只能有一个可变引用，要么只能有多个不可变引用</li>
+            <li>引用必须始终有效——不能引用已被释放的数据</li>
+          </ul>
+
+          <!-- 代码块 5：引用与借用 -->
+          <div class="relative group my-6">
+            <div class="absolute top-0 right-0 px-3 py-1.5 text-xs text-zinc-500 font-mono bg-zinc-800/80 rounded-bl-md z-10">rust</div>
+            <pre class="bg-[#1e1e2e] text-[#cdd6f4] rounded-lg p-5 overflow-x-auto text-sm leading-relaxed font-mono"><span class="text-[#cba6f7]">fn</span> <span class="text-[#89b4fa]">calculate_length</span>(s: <span class="text-[#f38ba8]">&</span><span class="text-[#89b4fa]">String</span>) -> <span class="text-[#89b4fa]">usize</span> {
+    s.<span class="text-[#89b4fa]">len</span>()  <span class="text-[#6c7086]">// 借用 s，不获取所有权</span>
+}
+
+<span class="text-[#cba6f7]">fn</span> <span class="text-[#89b4fa]">add_exclamation</span>(s: <span class="text-[#f38ba8]">&amp;mut</span> <span class="text-[#89b4fa]">String</span>) {
+    s.<span class="text-[#89b4fa]">push_str</span>(<span class="text-[#a6e3a1]">"!"</span>);  <span class="text-[#6c7086]">// 通过可变引用修改原始数据</span>
+}
+
+<span class="text-[#cba6f7]">fn</span> <span class="text-[#89b4fa]">main</span>() {
+    <span class="text-[#cba6f7]">let</span> s1 = <span class="text-[#89b4fa]">String</span>::<span class="text-[#89b4fa]">from</span>(<span class="text-[#a6e3a1]">"hello"</span>);
+
+    <span class="text-[#6c7086]">// 不可变借用 - 可以有多个</span>
+    <span class="text-[#cba6f7]">let</span> len = <span class="text-[#89b4fa]">calculate_length</span>(<span class="text-[#f38ba8]">&</span>s1);
+    <span class="text-[#89b4fa]">println!</span>(<span class="text-[#a6e3a1]">"'{}' 的长度是 {}"</span>, s1, len);
+
+    <span class="text-[#6c7086]">// 可变借用 - 同一时刻只能有一个</span>
+    <span class="text-[#cba6f7]">let</span> <span class="text-[#cba6f7]">mut</span> s2 = <span class="text-[#89b4fa]">String</span>::<span class="text-[#89b4fa]">from</span>(<span class="text-[#a6e3a1]">"hello"</span>);
+    <span class="text-[#89b4fa]">add_exclamation</span>(<span class="text-[#f38ba8]">&amp;mut</span> s2);
+    <span class="text-[#89b4fa]">println!</span>(<span class="text-[#a6e3a1]">"{}"</span>, s2);  <span class="text-[#6c7086]">// 输出: hello!</span>
+}</pre>
+          </div>
+
+          <!-- 警告提示框 -->
+          <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg my-6">
+            <div class="flex items-center gap-2 mb-2">
+              <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500"></i>
+              <span class="font-semibold text-amber-800 text-sm">注意</span>
+            </div>
+            <p class="text-sm text-amber-700 leading-relaxed mb-0">不可变引用和可变引用不能同时存在。以下代码将导致编译错误：先创建了不可变引用 <code class="bg-amber-100 px-1 py-0.5 rounded text-xs font-mono">r1</code>，然后尝试创建可变引用 <code class="bg-amber-100 px-1 py-0.5 rounded text-xs font-mono">r2</code>，这违反了借用规则。</p>
+          </div>
+
+          <p>引用的生命周期（Lifetime）是 Rust 中最复杂的主题之一，它确保了引用在使用期间始终有效。编译器通过生命周期标注来验证引用的有效性，这是 Rust 零成本抽象的重要组成部分。</p>
+
+          <!-- 文章互动栏 -->
+          <div class="flex items-center gap-4 mt-10 pt-6 border-t border-outline/20">
+            <button id="btn-like" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors text-sm text-on-surface-variant">
+              <i data-lucide="heart" class="w-4 h-4"></i>
+              <span id="like-count">128</span> 人觉得有用
+            </button>
+            <button id="btn-bookmark" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors text-sm text-on-surface-variant">
+              <i data-lucide="bookmark" class="w-4 h-4"></i>
+              收藏
+            </button>
+            <button id="btn-share" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors text-sm text-on-surface-variant">
+              <i data-lucide="share-2" class="w-4 h-4"></i>
+              分享
+            </button>
+          </div>
+
+          <!-- 上一章/下一章导航 -->
+          <div class="flex justify-between items-center mt-8 pt-6 border-t border-outline/20">
+            <a id="link-prev-chapter" href="course-detail.html" class="group flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-surface-container transition-colors">
+              <i data-lucide="arrow-left" class="w-4 h-4 text-on-surface-variant group-hover:text-primary transition-colors"></i>
+              <div>
+                <span class="text-xs text-on-surface-variant block">上一章</span>
+                <span class="text-sm font-medium text-on-surface group-hover:text-primary transition-colors">第2章：基本数据类型与模式匹配</span>
+              </div>
+            </a>
+            <a id="link-next-chapter" href="course-detail.html" class="group flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-surface-container transition-colors text-right">
+              <div>
+                <span class="text-xs text-on-surface-variant block">下一章</span>
+                <span class="text-sm font-medium text-on-surface group-hover:text-primary transition-colors">第4章：生命周期与泛型编程</span>
+              </div>
+              <i data-lucide="arrow-right" class="w-4 h-4 text-on-surface-variant group-hover:text-primary transition-colors"></i>
+            </a>
+          </div>
+
+          <!-- 评论区 -->
+          <section id="comments-section" class="mt-10 pt-8 border-t border-outline/20">
+            <h3 class="text-lg font-bold text-on-surface mb-6 flex items-center gap-2">
+              <i data-lucide="message-circle" class="w-5 h-5 text-on-surface-variant"></i>
+              评论 <span class="text-sm font-normal text-on-surface-variant">(3)</span>
+            </h3>
+
+            <!-- 发表评论 -->
+            <div id="comment-form" class="flex gap-3 mb-8 p-4 bg-surface-container-lowest/50 rounded-lg">
+              <div class="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">初</div>
+              <div class="flex-1">
+                <textarea id="comment-input" class="w-full bg-surface-container border-none rounded-md px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors resize-none" rows="3" placeholder="写下你的评论..."></textarea>
+                <div class="flex justify-end mt-2">
+                  <button id="btn-submit-comment" class="bg-primary text-on-primary px-4 py-1.5 rounded-md text-sm font-medium hover:opacity-90 active:scale-[0.98] transition-all">发表评论</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 评论列表 -->
+            <div id="comment-list" class="space-y-6">
+
+              <!-- 评论 1 -->
+              <div class="flex gap-3">
+                <div class="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-semibold text-emerald-700 shrink-0">林</div>
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm font-semibold text-on-surface">林小明</span>
+                    <span class="text-xs text-on-surface-variant">3 天前</span>
+                  </div>
+                  <p class="text-sm text-on-surface/80 leading-relaxed">这篇文章把所有权讲得非常清楚！特别是移动语义那部分，之前一直搞不懂为什么 String 赋值后原来的变量就不能用了，现在终于理解了。建议可以加一些关于 Copy trait 和 Clone trait 区别的更详细说明。</p>
+                  <button class="text-xs text-on-surface-variant hover:text-primary transition-colors mt-2 flex items-center gap-1">
+                    <i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i> 12
+                  </button>
+                </div>
+              </div>
+
+              <!-- 评论 2 -->
+              <div class="flex gap-3">
+                <div class="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center text-xs font-semibold text-violet-700 shrink-0">张</div>
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm font-semibold text-on-surface">张思远</span>
+                    <span class="text-xs text-on-surface-variant">5 天前</span>
+                  </div>
+                  <p class="text-sm text-on-surface/80 leading-relaxed">借用规则那部分讲得很好，不过关于生命周期省略的规则（lifetime elision）能不能也展开讲讲？每次写引用的时候都要手动标注生命周期太麻烦了，想知道编译器是怎么自动推断的。</p>
+                  <button class="text-xs text-on-surface-variant hover:text-primary transition-colors mt-2 flex items-center gap-1">
+                    <i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i> 8
+                  </button>
+                </div>
+              </div>
+
+              <!-- 评论 3 -->
+              <div class="flex gap-3">
+                <div class="w-9 h-9 rounded-full bg-sky-100 flex items-center justify-center text-xs font-semibold text-sky-700 shrink-0">王</div>
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm font-semibold text-on-surface">王雨晴</span>
+                    <span class="text-xs text-on-surface-variant">1 周前</span>
+                  </div>
+                  <p class="text-sm text-on-surface/80 leading-relaxed">从 C++ 转 Rust 的同学强烈推荐读这篇！所有权系统一开始确实让人不适应，但习惯之后会发现它帮你避免了很多潜在的 bug。特别是数据竞争问题，在编译阶段就被拦截了，太安心了。</p>
+                  <button class="text-xs text-on-surface-variant hover:text-primary transition-colors mt-2 flex items-center gap-1">
+                    <i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i> 15
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+          <!-- 底部标签 -->
+          <div id="article-tags" class="mt-10 pt-6 border-t border-outline/20 flex items-center gap-2 flex-wrap">
+            <i data-lucide="tags" class="w-4 h-4 text-on-surface-variant"></i>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors">Rust</span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors">所有权</span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors">内存管理</span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors">借用</span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors">引用</span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors">系统编程</span>
+          </div>
+
+        </article>
+
+        <!-- 右侧目录 TOC -->
+        <aside id="toc-sidebar" class="hidden xl:block w-60 shrink-0">
+          <div class="sticky top-20">
+            <h4 class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-4">目录</h4>
+            <nav id="toc-nav" class="space-y-1 border-l-2 border-outline/20">
+              <a href="#section-1" class="toc-link block pl-4 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors border-l-2 border-transparent -ml-[2px]" data-target="section-1">
+                3.1 栈与堆内存
+              </a>
+              <a href="#section-2" class="toc-link block pl-4 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors border-l-2 border-transparent -ml-[2px]" data-target="section-2">
+                3.2 所有权规则
+              </a>
+              <a href="#section-3" class="toc-link block pl-4 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors border-l-2 border-transparent -ml-[2px]" data-target="section-3">
+                3.3 变量作用域
+              </a>
+              <a href="#section-4" class="toc-link block pl-4 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors border-l-2 border-transparent -ml-[2px]" data-target="section-4">
+                3.4 移动语义
+              </a>
+              <a href="#section-5" class="toc-link block pl-4 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors border-l-2 border-transparent -ml-[2px]" data-target="section-5">
+                3.5 引用与借用
+              </a>
+            </nav>
+
+            <!-- 阅读进度 -->
+            <div class="mt-8 pt-6 border-t border-outline/20">
+              <div class="flex items-center justify-between text-xs text-on-surface-variant mb-2">
+                <span>阅读进度</span>
+                <span id="reading-progress-text" class="font-medium text-primary">0%</span>
+              </div>
+              <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+                <div id="reading-progress-bar" class="h-full bg-primary rounded-full transition-all duration-300" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </div>
+
+    <!-- @main-content:end -->
+  </main>
+
+  <script>
+    $(function() {
+      // 平滑滚动到目录锚点
+      $('#toc-nav').on('click', '.toc-link', function(e) {
+        e.preventDefault();
+        var target = $(this).data('target');
+        var $target = $('#' + target);
+        if ($target.length) {
+          $('main').animate({ scrollTop: $target[0].offsetTop - 80 }, 400);
+        }
+      });
+
+      // 滚动监听 - 目录高亮 & 阅读进度
+      $('main').on('scroll', function() {
+        var scrollTop = $(this).scrollTop();
+        var scrollHeight = $(this)[0].scrollHeight - $(this).height();
+        var progress = Math.min(Math.round((scrollTop / scrollHeight) * 100), 100);
+
+        // 更新阅读进度
+        $('#reading-progress-text').text(progress + '%');
+        $('#reading-progress-bar').css('width', progress + '%');
+
+        // 目录高亮
+        var currentSection = '';
+        $('[id^="section-"]').each(function() {
+          if ($(this).offset().top - 120 <= scrollTop) {
+            currentSection = $(this).attr('id');
+          }
+        });
+
+        $('.toc-link').each(function() {
+          var $link = $(this);
+          if ($link.data('target') === currentSection) {
+            $link.addClass('text-primary font-medium').removeClass('text-on-surface-variant');
+            $link.css('border-left-color', 'var(--color-primary)');
+          } else {
+            $link.removeClass('text-primary font-medium').addClass('text-on-surface-variant');
+            $link.css('border-left-color', 'transparent');
+          }
+        });
+      });
+
+      // 点赞按钮交互
+      var liked = false;
+      var likeCount = 128;
+      $('#btn-like').on('click', function() {
+        liked = !liked;
+        if (liked) {
+          likeCount++;
+          $(this).addClass('bg-primary/10 text-primary');
+          $(this).find('i').attr('data-lucide', 'heart').css('fill', 'currentColor');
+        } else {
+          likeCount--;
+          $(this).removeClass('bg-primary/10 text-primary');
+          $(this).find('i').attr('data-lucide', 'heart').css('fill', 'none');
+        }
+        $('#like-count').text(likeCount);
+        lucide.createIcons();
+      });
+
+      // 收藏按钮交互
+      var bookmarked = false;
+      $('#btn-bookmark').on('click', function() {
+        bookmarked = !bookmarked;
+        if (bookmarked) {
+          $(this).addClass('bg-primary/10 text-primary');
+          $(this).find('i').attr('data-lucide', 'bookmark').css('fill', 'currentColor');
+        } else {
+          $(this).removeClass('bg-primary/10 text-primary');
+          $(this).find('i').attr('data-lucide', 'bookmark').css('fill', 'none');
+        }
+        lucide.createIcons();
+      });
+
+      // 分享按钮
+      $('#btn-share').on('click', function() {
+        console.log('分享文章:', window.location.href);
+      });
+
+      // 提交评论 - 简单交互：点击后清空输入框并提示
+      $('#btn-submit-comment').on('click', function() {
+        var text = $('#comment-input').val().trim();
+        if (text) {
+          console.log('提交评论:', text);
+          $('#comment-input').val('');
+        }
+      });
+
+      // 初始化第一个目录项为高亮
+      $('.toc-link').first().addClass('text-primary font-medium').removeClass('text-on-surface-variant');
+      $('.toc-link').first().css('border-left-color', 'var(--color-primary)');
+    });
+  </script>
+  <script>lucide.createIcons();</script>
+</body>
+
+</html>

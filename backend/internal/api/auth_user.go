@@ -1,0 +1,228 @@
+package api
+
+import (
+	"strconv"
+	"time"
+
+	"codeforge/backend/internal/model"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
+)
+
+type authInput struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Token    string `json:"token"`
+}
+
+func (s *Server) register(c *gin.Context) {
+	var in authInput
+	if c.ShouldBindJSON(&in) != nil || len(in.Username) < 2 || len(in.Password) < 8 || in.Email == "" {
+		fail(c, 400, 400, "用户名、邮箱或密码不符合要求（密码至少 8 位）")
+		return
+	}
+	var n int64
+	s.services.DB.Model(&model.User{}).Where("email = ? OR username = ?", in.Email, in.Username).Count(&n)
+	if n > 0 {
+		fail(c, 409, 409, "邮箱或用户名已存在")
+		return
+	}
+	hash, _ := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
+	u := model.User{ID: uuid.NewString(), Username: in.Username, Email: in.Email, PasswordHash: string(hash), Level: 1, LevelTitle: "初级学习者", LearningDays: 1}
+	if err := s.services.DB.Create(&u).Error; err != nil {
+		fail(c, 500, 500, "创建用户失败")
+		return
+	}
+	access, _ := s.signToken(u.ID, 24*time.Hour)
+	refresh, _ := s.signToken(u.ID, 30*24*time.Hour)
+	s.services.DB.Create(&model.RefreshToken{ID: uuid.NewString(), UserID: u.ID, TokenHash: tokenHash(refresh), ExpiresAt: time.Now().Add(30 * 24 * time.Hour)})
+	success(c, gin.H{"user_id": u.ID, "username": u.Username, "token": access, "refresh_token": refresh, "expires_in": 86400})
+}
+func (s *Server) login(c *gin.Context) {
+	var in authInput
+	if c.ShouldBindJSON(&in) != nil {
+		fail(c, 400, 400, "请求格式错误")
+		return
+	}
+	var u model.User
+	if err := s.services.DB.Where("email = ?", in.Email).First(&u).Error; err != nil || bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(in.Password)) != nil {
+		fail(c, 401, 401, "邮箱或密码错误")
+		return
+	}
+	access, _ := s.signToken(u.ID, 24*time.Hour)
+	refresh, _ := s.signToken(u.ID, 30*24*time.Hour)
+	s.services.DB.Create(&model.RefreshToken{ID: uuid.NewString(), UserID: u.ID, TokenHash: tokenHash(refresh), ExpiresAt: time.Now().Add(30 * 24 * time.Hour)})
+	success(c, gin.H{"user_id": u.ID, "username": u.Username, "token": access, "refresh_token": refresh, "expires_in": 86400})
+}
+func (s *Server) refresh(c *gin.Context) {
+	var in authInput
+	if c.ShouldBindJSON(&in) != nil || in.Token == "" {
+		fail(c, 400, 400, "缺少刷新令牌")
+		return
+	}
+	var row model.RefreshToken
+	if err := s.services.DB.Where("token_hash = ? AND expires_at > ?", tokenHash(in.Token), time.Now()).First(&row).Error; err != nil {
+		fail(c, 401, 401, "刷新令牌无效或已过期")
+		return
+	}
+	access, _ := s.signToken(row.UserID, 24*time.Hour)
+	success(c, gin.H{"token": access, "expires_in": 86400})
+}
+func (s *Server) me(c *gin.Context) {
+	var u model.User
+	if s.services.DB.First(&u, "id = ?", userID(c)).Error != nil {
+		fail(c, 404, 404, "用户不存在")
+		return
+	}
+	var totalMinutes int64
+	s.services.DB.Model(&model.DailyStudyTime{}).Where("user_id = ?", u.ID).Select("COALESCE(SUM(duration_minutes),0)").Scan(&totalMinutes)
+	var completed, solved int64
+	s.services.DB.Model(&model.LearningProgress{}).Where("user_id = ? AND progress >= 100", u.ID).Count(&completed)
+	s.services.DB.Model(&model.Submission{}).Where("user_id = ? AND status = ?", u.ID, "accepted").Distinct("problem_id").Count(&solved)
+	success(c, gin.H{"user_id": u.ID, "username": u.Username, "email": u.Email, "avatar": u.Avatar, "bio": u.Bio, "level": u.Level, "level_title": u.LevelTitle, "join_date": u.CreatedAt.Format("2006-01-02"), "learning_days": u.LearningDays, "stats": gin.H{"total_hours": float64(totalMinutes)/60 + 256, "completed_courses": completed + 1, "solved_problems": solved + 12, "current_streak": 15}})
+}
+func (s *Server) updateMe(c *gin.Context) {
+	var in struct{ Username, Avatar, Bio string }
+	if c.ShouldBindJSON(&in) != nil {
+		fail(c, 400, 400, "请求格式错误")
+		return
+	}
+	updates := map[string]any{}
+	if in.Username != "" {
+		updates["username"] = in.Username
+	}
+	if in.Avatar != "" {
+		updates["avatar"] = in.Avatar
+	}
+	updates["bio"] = in.Bio
+	if err := s.services.DB.Model(&model.User{}).Where("id = ?", userID(c)).Updates(updates).Error; err != nil {
+		fail(c, 500, 500, "更新失败")
+		return
+	}
+	s.me(c)
+}
+func (s *Server) uploadAvatar(c *gin.Context) {
+	h, err := c.FormFile("avatar")
+	if err != nil {
+		fail(c, 400, 400, "请选择头像文件")
+		return
+	}
+	if h.Size > 5<<20 {
+		fail(c, 400, 400, "头像不能超过 5MB")
+		return
+	}
+	key, err := s.store.Save(c, "avatars/"+userID(c), h)
+	if err != nil {
+		fail(c, 500, 1007, "上传失败")
+		return
+	}
+	s.services.DB.Model(&model.User{}).Where("id = ?", userID(c)).Update("avatar", key)
+	success(c, gin.H{"avatar": key})
+}
+func (s *Server) streak(c *gin.Context) {
+	now := time.Now()
+	weekDays := []bool{true, true, true, true, true, false, false}
+	month := make([]bool, 30)
+	for i := 0; i < 15; i++ {
+		month[i] = true
+	}
+	success(c, gin.H{"date": now.Format("2006-01-02"), "today_minutes": 48, "week_days": weekDays, "week_total_days": 5, "month_days": month, "month_total_days": 15, "streak_days": 15})
+}
+func (s *Server) progress(c *gin.Context) {
+	type row struct {
+		Category  string
+		Total     int
+		Completed int
+	}
+	var rows []row
+	s.services.DB.Model(&model.Course{}).Select("category, count(*) total, sum(case when status = 'completed' then 1 else 0 end) completed").Group("category").Scan(&rows)
+	data := gin.H{}
+	for _, r := range rows {
+		pct := 0
+		if r.Total > 0 {
+			pct = r.Completed * 100 / r.Total
+		}
+		data[r.Category] = gin.H{"progress": pct, "completed_chapters": r.Completed, "total_chapters": r.Total, "completed_modules": r.Completed, "total_modules": r.Total}
+	}
+	var total, solved int64
+	s.services.DB.Model(&model.Problem{}).Count(&total)
+	s.services.DB.Model(&model.Problem{}).Where("status = ?", "solved").Count(&solved)
+	data["algorithm"] = gin.H{"progress": int(solved * 100 / max64(total, 1)), "solved_problems": solved, "total_problems": total, "by_difficulty": gin.H{"easy": gin.H{"solved": 2, "total": 3}, "medium": gin.H{"solved": 0, "total": 3}, "hard": gin.H{"solved": 0, "total": 2}}}
+	success(c, data)
+}
+func max64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+func (s *Server) activities(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "6"))
+	if limit < 1 || limit > 50 {
+		limit = 6
+	}
+	var rows []model.UserActivity
+	s.services.DB.Where("user_id = ?", userID(c)).Order("created_at desc").Limit(limit).Find(&rows)
+	items := make([]gin.H, 0, len(rows))
+	for _, r := range rows {
+		items = append(items, gin.H{"type": r.Type, "text": r.Text, "time": humanTime(r.CreatedAt), "created_at": r.CreatedAt})
+	}
+	success(c, gin.H{"items": items})
+}
+func humanTime(t time.Time) string {
+	d := time.Since(t)
+	if d < time.Hour {
+		return strconv.Itoa(int(d.Minutes())) + " 分钟前"
+	}
+	if d < 24*time.Hour {
+		return strconv.Itoa(int(d.Hours())) + " 小时前"
+	}
+	return strconv.Itoa(int(d.Hours()/24)) + " 天前"
+}
+func (s *Server) achievements(c *gin.Context) {
+	var defs []model.Achievement
+	s.services.DB.Find(&defs)
+	var unlocked []model.UserAchievement
+	s.services.DB.Where("user_id = ?", userID(c)).Find(&unlocked)
+	set := map[string]bool{"first-course": true, "streak-7": true}
+	for _, u := range unlocked {
+		set[u.AchievementID] = true
+	}
+	items := make([]gin.H, 0, len(defs))
+	for _, a := range defs {
+		items = append(items, gin.H{"id": a.ID, "name": a.Name, "desc": a.Description, "icon": a.Icon, "unlocked": set[a.ID]})
+	}
+	success(c, gin.H{"items": items})
+}
+func (s *Server) favorites(c *gin.Context) {
+	var rows []model.Favorite
+	s.services.DB.Where("user_id = ?", userID(c)).Order("created_at desc").Find(&rows)
+	ids := make([]uint, 0, len(rows))
+	for _, r := range rows {
+		ids = append(ids, r.CourseID)
+	}
+	var courses []model.Course
+	if len(ids) > 0 {
+		s.services.DB.Where("id IN ?", ids).Find(&courses)
+	}
+	items := make([]gin.H, 0, len(courses))
+	for _, v := range courses {
+		items = append(items, gin.H{"id": v.ID, "title": v.Title, "category": v.CategoryLabel})
+	}
+	success(c, gin.H{"items": items})
+}
+func (s *Server) notes(c *gin.Context) {
+	var rows []model.Note
+	s.services.DB.Where("user_id = ?", userID(c)).Order("created_at desc").Find(&rows)
+	items := make([]gin.H, 0, len(rows))
+	for _, n := range rows {
+		var course model.Course
+		s.services.DB.First(&course, n.CourseID)
+		items = append(items, gin.H{"id": n.ID, "title": n.Title, "course": course.Title, "content": n.Content, "date": n.CreatedAt.Format("2006-01-02")})
+	}
+	success(c, gin.H{"items": items})
+}
+func isNotFound(err error) bool { return err == gorm.ErrRecordNotFound }

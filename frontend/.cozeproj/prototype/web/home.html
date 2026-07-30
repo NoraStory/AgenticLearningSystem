@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/jquery/jquery-3.7.1.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/lucide/lucide-1.11.0.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/tailwindcss/tailwindcss-browser-4.2.4.min.js"></script>
+
+  <style type="text/tailwindcss">
+    @theme {
+      /* === 品牌色 === */
+      --color-primary:              #2563EB;
+      --color-primary-container:    #DBEAFE;
+      --color-on-primary:           #ffffff;
+      /* === 背景 / 表面 === */
+      --color-background:                 #FFFFFF;
+      --color-surface-container-lowest:   #FAFAFA;
+      --color-surface:                    #FFFFFF;
+      --color-surface-container:          #F4F4F5;
+      --color-surface-container-high:     #E4E4E7;
+      --color-surface-container-highest:  #D4D4D8;
+      /* === 文字 === */
+      --color-on-surface:           #18181B;
+      --color-on-surface-variant:   #71717A;
+      /* === 功能色 === */
+      --color-success:  #22c55e;
+      --color-error:    #ef4444;
+      --color-warning:  #f59e0b;
+      /* === 边框 === */
+      --color-outline:          #E4E4E7;
+      --color-outline-variant:  #F4F4F5;
+      /* === 圆角 === */
+      --radius-sm:   0.375rem;
+      --radius-md:   0.5rem;
+      --radius-lg:   0.75rem;
+      --radius-xl:   1rem;
+      --radius-2xl:  1.5rem;
+      --radius-full: 9999px;
+      /* === 阴影 === */
+      --shadow-card:   0 2px 8px rgba(0,0,0,0.08);
+      --shadow-float:  0 10px 25px rgba(0,0,0,0.10);
+      --shadow-dialog: 0 25px 50px rgba(0,0,0,0.12);
+      /* === 字体 === */
+      --font-sans: "Inter", "Noto Sans SC", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+    }
+  </style>
+
+  <!-- 图片兜底 -->
+  <script>
+    document.addEventListener('error', function (e) {
+      const img = e.target;
+      if (img.tagName !== 'IMG' || img.dataset.fallback) return;
+      img.dataset.fallback = '1';
+      const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const cat = img.getAttribute('data-category') || '其他';
+      const alt = img.getAttribute('alt') || '';
+      const label = esc(alt.length > 8 ? alt.slice(0, 8) + '…' : alt);
+      const icons = { '人物': '👤', '自然风景': '🏞', '动物': '🐾', '建筑城市': '🏙', '运动体育': '⚽', '交通工具': '🚗', '食物': '🍽', '服饰时尚': '👗', '商业科技': '💼', '游戏娱乐': '🎮', '艺术': '🎨', '其他': '🖼' };
+      const icon = icons[cat] || '🖼';
+      const w = img.width || 400, h = img.height || 300;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="45%" text-anchor="middle" font-size="${Math.min(w, h) * 0.18}" dominant-baseline="central">${icon}</text><text x="50%" y="68%" text-anchor="middle" font-size="${Math.min(w, h) * 0.07}" fill="%239ca3af" font-family="system-ui,sans-serif" dominant-baseline="central">${label}</text></svg>`;
+      img.src = 'data:image/svg+xml,' + svg;
+    }, true);
+  </script>
+</head>
+
+<body class="bg-background text-on-surface font-sans">
+
+  <!-- @nav:start 导航组件，不需要的页面则不要复制此段（从 @nav:start 到 @nav:end） -->
+  <header class="bg-surface/80 backdrop-blur-sm sticky top-0 z-40 h-14 flex items-center justify-between px-6 border-b border-outline/20">
+    <a href="home.html" class="flex items-center gap-2.5">
+      <i data-lucide="braces" class="text-primary w-5 h-5"></i>
+      <span class="font-bold text-lg text-on-surface">CodeForge</span>
+      <span class="text-[10px] text-on-primary bg-primary px-1.5 py-0.5 rounded-sm font-medium">Academy</span>
+    </a>
+    <nav class="flex items-center gap-1">
+      <a href="home.html" class="px-3 py-1.5 text-sm font-medium text-primary transition-colors" aria-current="page">首页</a>
+      <a href="rust.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">Rust</a>
+      <a href="algorithm.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">算法</a>
+      <a href="agent.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">Agent</a>
+      <a href="practice.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">练习</a>
+      <a href="learning-path.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">路径</a>
+    </nav>
+    <div class="flex items-center gap-3">
+      <button id="btn-search" class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+        <i data-lucide="search" class="w-4 h-4"></i>
+      </button>
+      <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary cursor-pointer hover:bg-primary/20 transition-colors">初</div>
+    </div>
+  </header>
+  <div class="flex" style="height: calc(100vh - 3.5rem)">
+    <aside class="w-52 shrink-0 bg-surface-container-lowest/50 border-r border-outline/10 overflow-y-auto">
+      <nav class="p-3 space-y-1">
+        <a href="home.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md bg-primary/10 text-primary font-medium text-sm transition-colors" aria-current="page">
+          <i data-lucide="home" class="w-4 h-4"></i>首页
+        </a>
+        <a href="rust.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="cog" class="w-4 h-4"></i>Rust 编程
+        </a>
+        <a href="algorithm.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="binary" class="w-4 h-4"></i>数据结构与算法
+        </a>
+        <a href="agent.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="bot" class="w-4 h-4"></i>AI Agent
+        </a>
+        <div class="my-2 mx-3 border-t border-outline/10"></div>
+        <a href="practice.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="terminal" class="w-4 h-4"></i>在线练习
+        </a>
+        <a href="learning-path.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="map" class="w-4 h-4"></i>学习路径
+        </a>
+        <a href="profile.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="user" class="w-4 h-4"></i>个人中心
+        </a>
+      </nav>
+      <!-- 小板报：学习日历 -->
+      <div class="mx-3 mt-4 p-3 bg-surface rounded-lg border border-outline/10">
+        <div class="text-xs font-medium text-on-surface-variant mb-2">学习小板报</div>
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between"><span class="text-on-surface-variant">今日</span><span class="text-primary font-medium">已学 45 分钟</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本周</span><span class="text-on-surface">5/7 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本月</span><span class="text-on-surface">18/30 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">连续打卡</span><span class="text-error font-medium">15 天</span></div>
+        </div>
+      </div>
+    </aside>
+  <!-- @nav:end 导航组件，不需要的页面则不要复制此段 -->
+
+  <main class="flex-1 min-w-0 overflow-y-auto bg-background">
+    <!-- @main-content:start -->
+
+    <!-- 欢迎横幅 -->
+    <div class="px-8 pt-8 pb-6">
+      <h1 class="text-2xl font-bold text-on-surface">欢迎回来，小初</h1>
+      <p class="text-sm text-on-surface-variant mt-1.5 flex items-center gap-1.5">
+        <i data-lucide="flame" class="w-4 h-4 text-error"></i>
+        已连续学习 15 天，继续保持！
+      </p>
+    </div>
+
+    <!-- 内容区：博客流 + 右侧边栏 -->
+    <div class="flex gap-8 px-8 pb-8">
+
+      <!-- 左侧：博客文章流 -->
+      <div class="flex-1 min-w-0">
+
+        <!-- 分区标题 + 筛选标签 -->
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-lg font-semibold text-on-surface">最新内容</h2>
+          <div id="filter-tabs" class="flex items-center gap-1">
+            <button id="filter-all" class="filter-tab px-3 py-1.5 text-sm font-medium text-primary bg-primary/10 rounded-md transition-colors" data-filter="all">全部</button>
+            <button id="filter-rust" class="filter-tab px-3 py-1.5 text-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-md transition-colors" data-filter="rust">Rust</button>
+            <button id="filter-algo" class="filter-tab px-3 py-1.5 text-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-md transition-colors" data-filter="algorithm">算法</button>
+            <button id="filter-agent" class="filter-tab px-3 py-1.5 text-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-md transition-colors" data-filter="agent">Agent</button>
+          </div>
+        </div>
+
+        <!-- 文章列表 -->
+        <div id="blog-feed">
+
+          <!-- 列表-文章1：Rust 所有权 -->
+          <div class="article-item pb-8 mb-8 border-b border-outline/10" data-category="rust">
+            <article id="article-1" class="group cursor-pointer">
+              <div class="overflow-hidden rounded-lg mb-4">
+                <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&h=400&fit=crop" alt="代码编辑器中展示的Rust源代码" data-category="商业科技" class="w-full h-52 object-cover group-hover:scale-[1.02] transition-transform duration-300">
+              </div>
+              <div class="space-y-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-orange-500/10 text-orange-600">Rust</span>
+                  <span class="text-xs text-on-surface-variant">2024 年 1 月 15 日</span>
+                </div>
+                <h2 class="text-xl font-bold text-on-surface group-hover:text-primary transition-colors leading-snug">Rust 所有权机制深度解析</h2>
+                <p class="text-sm text-on-surface-variant leading-relaxed">所有权系统是 Rust 最独特的特性，它让 Rust 无需垃圾回收器即可保障内存安全。本文深入探讨所有权、借用和生命周期的核心概念，通过大量实例帮助你建立直觉。</p>
+                <div class="flex items-center gap-2 pt-1">
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">入门</span>
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">所有权</span>
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">内存安全</span>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- 列表-文章2：动态规划 -->
+          <div class="article-item pb-8 mb-8 border-b border-outline/10" data-category="algorithm">
+            <article id="article-2" class="group cursor-pointer">
+              <div class="overflow-hidden rounded-lg mb-4">
+                <img src="https://images.unsplash.com/photo-1509228468518-180dd4864904?w=800&h=400&fit=crop" alt="抽象的数学几何图形展示" data-category="艺术" class="w-full h-52 object-cover group-hover:scale-[1.02] transition-transform duration-300">
+              </div>
+              <div class="space-y-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-blue-500/10 text-blue-600">算法</span>
+                  <span class="text-xs text-on-surface-variant">2024 年 1 月 13 日</span>
+                </div>
+                <h2 class="text-xl font-bold text-on-surface group-hover:text-primary transition-colors leading-snug">动态规划入门：从递归到记忆化搜索</h2>
+                <p class="text-sm text-on-surface-variant leading-relaxed">动态规划是算法面试中的高频考点。本文将从最简单的递归解法出发，逐步引入记忆化搜索和状态转移方程，帮你建立完整的 DP 思维框架。</p>
+                <div class="flex items-center gap-2 pt-1">
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">DP</span>
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">入门</span>
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">递归</span>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- 列表-文章3：AI Agent -->
+          <div class="article-item pb-8 mb-8 border-b border-outline/10" data-category="agent">
+            <article id="article-3" class="group cursor-pointer">
+              <div class="overflow-hidden rounded-lg mb-4">
+                <img src="https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop" alt="人工智能神经网络概念可视化" data-category="商业科技" class="w-full h-52 object-cover group-hover:scale-[1.02] transition-transform duration-300">
+              </div>
+              <div class="space-y-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-purple-500/10 text-purple-600">Agent</span>
+                  <span class="text-xs text-on-surface-variant">2024 年 1 月 11 日</span>
+                </div>
+                <h2 class="text-xl font-bold text-on-surface group-hover:text-primary transition-colors leading-snug">构建你的第一个 AI Agent：从原理到实践</h2>
+                <p class="text-sm text-on-surface-variant leading-relaxed">AI Agent 正在改变软件开发的方式。本文介绍 Agent 的核心架构——感知、规划、行动循环，并手把手带你用 LangChain 构建一个能调用工具的简单 Agent。</p>
+                <div class="flex items-center gap-2 pt-1">
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">LLM</span>
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">工具调用</span>
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">LangChain</span>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- 列表-文章4：Rust 并发 -->
+          <div class="article-item pb-8 mb-8 border-b border-outline/10" data-category="rust">
+            <article id="article-4" class="group cursor-pointer">
+              <div class="overflow-hidden rounded-lg mb-4">
+                <img src="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&h=400&fit=crop" alt="笔记本电脑上的编程工作空间" data-category="商业科技" class="w-full h-52 object-cover group-hover:scale-[1.02] transition-transform duration-300">
+              </div>
+              <div class="space-y-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-orange-500/10 text-orange-600">Rust</span>
+                  <span class="text-xs text-on-surface-variant">2024 年 1 月 9 日</span>
+                </div>
+                <h2 class="text-xl font-bold text-on-surface group-hover:text-primary transition-colors leading-snug">Rust 并发编程：无畏并发的实践指南</h2>
+                <p class="text-sm text-on-surface-variant leading-relaxed">Rust 的类型系统在编译期就能防止数据竞争。本文详解线程、消息传递、共享状态等并发模式，以及 async/await 异步编程的实战技巧。</p>
+                <div class="flex items-center gap-2 pt-1">
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">并发</span>
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">async</span>
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">线程</span>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- 列表-文章5：图算法 -->
+          <div class="article-item pb-8 mb-8 border-b border-outline/10" data-category="algorithm">
+            <article id="article-5" class="group cursor-pointer">
+              <div class="overflow-hidden rounded-lg mb-4">
+                <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=400&fit=crop" alt="数据可视化分析仪表盘界面" data-category="商业科技" class="w-full h-52 object-cover group-hover:scale-[1.02] transition-transform duration-300">
+              </div>
+              <div class="space-y-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-blue-500/10 text-blue-600">算法</span>
+                  <span class="text-xs text-on-surface-variant">2024 年 1 月 7 日</span>
+                </div>
+                <h2 class="text-xl font-bold text-on-surface group-hover:text-primary transition-colors leading-snug">图算法实战：最短路径与网络流</h2>
+                <p class="text-sm text-on-surface-variant leading-relaxed">图论算法在实际工程中应用广泛。本文以 Dijkstra 和 Ford-Fulkerson 为核心，结合地图导航和资源分配两个场景，讲解图算法的实现与优化策略。</p>
+                <div class="flex items-center gap-2 pt-1">
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">图论</span>
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">Dijkstra</span>
+                  <span class="text-xs text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">进阶</span>
+                </div>
+              </div>
+            </article>
+          </div>
+
+        </div>
+
+        <!-- 查看更多 -->
+        <div class="text-center pt-2 pb-4">
+          <button id="btn-load-more" class="px-6 py-2.5 text-sm font-medium text-on-surface-variant bg-surface-container hover:bg-surface-container-high rounded-md transition-colors">
+            查看更多文章
+          </button>
+        </div>
+      </div>
+
+      <!-- 右侧边栏 -->
+      <div class="w-[280px] shrink-0">
+        <div class="sticky top-4 space-y-5">
+
+          <!-- 侧边栏组件-学习进度 -->
+          <div class="bg-surface rounded-lg shadow-card p-5">
+            <h3 class="text-sm font-semibold text-on-surface mb-4">学习进度</h3>
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="text-on-surface font-medium">Rust 编程</span>
+                  <span class="text-on-surface-variant">68%</span>
+                </div>
+                <div class="h-1.5 bg-surface-container rounded-full overflow-hidden">
+                  <div class="h-full bg-orange-500 rounded-full" style="width: 68%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="text-on-surface font-medium">数据结构与算法</span>
+                  <span class="text-on-surface-variant">42%</span>
+                </div>
+                <div class="h-1.5 bg-surface-container rounded-full overflow-hidden">
+                  <div class="h-full bg-blue-500 rounded-full" style="width: 42%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="text-on-surface font-medium">AI Agent</span>
+                  <span class="text-on-surface-variant">25%</span>
+                </div>
+                <div class="h-1.5 bg-surface-container rounded-full overflow-hidden">
+                  <div class="h-full bg-purple-500 rounded-full" style="width: 25%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 侧边栏组件-每日一题 -->
+          <div class="bg-surface rounded-lg shadow-card p-5">
+            <div class="flex items-center gap-2 mb-3">
+              <i data-lucide="zap" class="w-4 h-4 text-warning"></i>
+              <h3 class="text-sm font-semibold text-on-surface">每日一题</h3>
+            </div>
+            <p class="text-sm font-medium text-on-surface leading-snug">两数之和 II - 输入有序数组</p>
+            <p class="text-xs text-on-surface-variant mt-1.5 leading-relaxed">给定一个升序排列的整数数组，找出两个数使得它们相加等于目标值。</p>
+            <div class="flex items-center gap-2 mt-3">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-success/15 text-success">中等</span>
+              <span class="text-xs text-on-surface-variant">双指针</span>
+            </div>
+            <button id="btn-daily-challenge" class="mt-3.5 w-full text-center py-2 text-sm text-primary font-medium bg-primary/5 hover:bg-primary/10 rounded-md transition-colors">去挑战 →</button>
+          </div>
+
+          <!-- 侧边栏组件-热门标签 -->
+          <div class="bg-surface rounded-lg shadow-card p-5">
+            <h3 class="text-sm font-semibold text-on-surface mb-3">热门标签</h3>
+            <div id="tag-cloud" class="flex flex-wrap gap-2">
+              <!-- 标签-Rust -->
+              <span class="tag-item cursor-pointer px-2.5 py-1 rounded-full text-xs bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="rust" data-active="false" id="tag-rust">Rust</span>
+              <!-- 标签-所有权 -->
+              <span class="tag-item cursor-pointer px-2.5 py-1 rounded-full text-xs bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="rust" data-active="false" id="tag-ownership">所有权</span>
+              <!-- 标签-并发 -->
+              <span class="tag-item cursor-pointer px-2.5 py-1 rounded-full text-xs bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="rust" data-active="false" id="tag-concurrency">并发</span>
+              <!-- 标签-async -->
+              <span class="tag-item cursor-pointer px-2.5 py-1 rounded-full text-xs bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="rust" data-active="false" id="tag-async">async</span>
+              <!-- 标签-算法 -->
+              <span class="tag-item cursor-pointer px-2.5 py-1 rounded-full text-xs bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="algorithm" data-active="false" id="tag-algo">算法</span>
+              <!-- 标签-DP -->
+              <span class="tag-item cursor-pointer px-2.5 py-1 rounded-full text-xs bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="algorithm" data-active="false" id="tag-dp">DP</span>
+              <!-- 标签-图论 -->
+              <span class="tag-item cursor-pointer px-2.5 py-1 rounded-full text-xs bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="algorithm" data-active="false" id="tag-graph">图论</span>
+              <!-- 标签-Agent -->
+              <span class="tag-item cursor-pointer px-2.5 py-1 rounded-full text-xs bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="agent" data-active="false" id="tag-agent">Agent</span>
+              <!-- 标签-LLM -->
+              <span class="tag-item cursor-pointer px-2.5 py-1 rounded-full text-xs bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="agent" data-active="false" id="tag-llm">LLM</span>
+              <!-- 标签-LangChain -->
+              <span class="tag-item cursor-pointer px-2.5 py-1 rounded-full text-xs bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="agent" data-active="false" id="tag-langchain">LangChain</span>
+              <!-- 标签-面试 -->
+              <span class="tag-item cursor-pointer px-2.5 py-1 rounded-full text-xs bg-surface-container text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors" data-category="all" data-active="false" id="tag-interview">面试</span>
+            </div>
+          </div>
+
+          <!-- 侧边栏组件-推荐课程 -->
+          <div class="bg-surface rounded-lg shadow-card p-5">
+            <h3 class="text-sm font-semibold text-on-surface mb-4">推荐课程</h3>
+            <div class="space-y-3.5">
+              <!-- 推荐课程1 -->
+              <a href="course-detail.html?id=1" class="flex items-start gap-3 group" id="rec-course-1">
+                <span class="text-xs font-semibold text-on-surface-variant/30 mt-0.5 font-mono">01</span>
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-on-surface group-hover:text-primary transition-colors">Rust 实战：从零到 Web 开发</p>
+                  <p class="text-xs text-on-surface-variant mt-0.5">12 节课 · 进阶</p>
+                </div>
+              </a>
+              <!-- 推荐课程2 -->
+              <a href="course-detail.html?id=2" class="flex items-start gap-3 group" id="rec-course-2">
+                <span class="text-xs font-semibold text-on-surface-variant/30 mt-0.5 font-mono">02</span>
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-on-surface group-hover:text-primary transition-colors">算法面试高频题精讲</p>
+                  <p class="text-xs text-on-surface-variant mt-0.5">24 节课 · 中级</p>
+                </div>
+              </a>
+              <!-- 推荐课程3 -->
+              <a href="course-detail.html?id=3" class="flex items-start gap-3 group" id="rec-course-3">
+                <span class="text-xs font-semibold text-on-surface-variant/30 mt-0.5 font-mono">03</span>
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-on-surface group-hover:text-primary transition-colors">LangChain 应用开发实战</p>
+                  <p class="text-xs text-on-surface-variant mt-0.5">8 节课 · 入门</p>
+                </div>
+              </a>
+              <!-- 推荐课程4 -->
+              <a href="course-detail.html?id=4" class="flex items-start gap-3 group" id="rec-course-4">
+                <span class="text-xs font-semibold text-on-surface-variant/30 mt-0.5 font-mono">04</span>
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-on-surface group-hover:text-primary transition-colors">系统设计入门指南</p>
+                  <p class="text-xs text-on-surface-variant mt-0.5">16 节课 · 进阶</p>
+                </div>
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- @main-content:end -->
+  </main>
+  </div>
+
+  <script>
+    $(function() {
+      // 文章卡片点击 → 跳转详情页
+      $('#blog-feed').on('click', 'article', function(e) {
+        if ($(e.target).closest('span').length) return;
+        var id = $(this).attr('id').replace('article-', '');
+        window.location.href = 'course-detail.html?id=' + id;
+      });
+
+      // 分类筛选标签
+      $('#filter-tabs').on('click', '.filter-tab', function() {
+        var filter = $(this).data('filter');
+
+        // 切换激活态
+        $('#filter-tabs .filter-tab').each(function() {
+          $(this).removeClass('text-primary bg-primary/10 font-medium')
+                 .addClass('text-on-surface-variant');
+        });
+        $(this).removeClass('text-on-surface-variant')
+               .addClass('text-primary bg-primary/10 font-medium');
+
+        // 筛选文章
+        if (filter === 'all') {
+          $('.article-item').show();
+        } else {
+          $('.article-item').hide();
+          $('.article-item[data-category="' + filter + '"]').show();
+        }
+
+        // 重置标签云
+        $('#tag-cloud .tag-item').each(function() {
+          $(this).data('active', false)
+                 .removeClass('bg-primary/10 text-primary')
+                 .addClass('bg-surface-container text-on-surface-variant');
+        });
+      });
+
+      // 热门标签点击筛选
+      $('#tag-cloud').on('click', '.tag-item', function() {
+        var isActive = $(this).data('active');
+        $(this).data('active', !isActive);
+
+        if (!isActive) {
+          $(this).removeClass('bg-surface-container text-on-surface-variant')
+                 .addClass('bg-primary/10 text-primary');
+        } else {
+          $(this).removeClass('bg-primary/10 text-primary')
+                 .addClass('bg-surface-container text-on-surface-variant');
+        }
+
+        // 收集所有激活的分类
+        var activeCats = [];
+        $('#tag-cloud .tag-item').each(function() {
+          if ($(this).data('active')) {
+            var cat = $(this).data('category');
+            if (cat !== 'all' && $.inArray(cat, activeCats) === -1) {
+              activeCats.push(cat);
+            }
+          }
+        });
+
+        // 筛选文章
+        if (activeCats.length === 0) {
+          $('.article-item').show();
+        } else {
+          $('.article-item').hide();
+          $.each(activeCats, function(i, cat) {
+            $('.article-item[data-category="' + cat + '"]').show();
+          });
+        }
+
+        // 重置筛选标签到"全部"
+        $('#filter-tabs .filter-tab').each(function() {
+          $(this).removeClass('text-primary bg-primary/10 font-medium')
+                 .addClass('text-on-surface-variant');
+        });
+        $('#filter-all').removeClass('text-on-surface-variant')
+                        .addClass('text-primary bg-primary/10 font-medium');
+      });
+
+      // 每日一题 → 跳转练习页
+      $('#btn-daily-challenge').on('click', function() {
+        window.location.href = 'practice.html';
+      });
+
+      // 查看更多
+      $('#btn-load-more').on('click', function() {
+        console.log('加载更多文章');
+      });
+
+      // 搜索按钮
+      $('#btn-search').on('click', function() {
+        console.log('打开搜索功能');
+      });
+    });
+  </script>
+  <script>lucide.createIcons();</script>
+</body>
+
+</html>

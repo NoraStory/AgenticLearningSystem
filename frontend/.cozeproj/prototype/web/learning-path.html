@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/jquery/jquery-3.7.1.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/lucide/lucide-1.11.0.min.js"></script>
+  <script src="https://lf-code-agent.coze.cn/obj/x-ai-cn/cdn/tailwindcss/tailwindcss-browser-4.2.4.min.js"></script>
+
+  <style type="text/tailwindcss">
+    @theme {
+      /* === 品牌色 === */
+      --color-primary:              #2563EB;
+      --color-primary-container:    #DBEAFE;
+      --color-on-primary:           #ffffff;
+      /* === 背景 / 表面 === */
+      --color-background:                 #FFFFFF;
+      --color-surface-container-lowest:   #FAFAFA;
+      --color-surface:                    #FFFFFF;
+      --color-surface-container:          #F4F4F5;
+      --color-surface-container-high:     #E4E4E7;
+      --color-surface-container-highest:  #D4D4D8;
+      /* === 文字 === */
+      --color-on-surface:           #18181B;
+      --color-on-surface-variant:   #71717A;
+      /* === 功能色 === */
+      --color-success:  #22c55e;
+      --color-error:    #ef4444;
+      --color-warning:  #f59e0b;
+      /* === 边框 === */
+      --color-outline:          #E4E4E7;
+      --color-outline-variant:  #F4F4F5;
+      /* === 圆角 === */
+      --radius-sm:   0.375rem;
+      --radius-md:   0.5rem;
+      --radius-lg:   0.75rem;
+      --radius-xl:   1rem;
+      --radius-2xl:  1.5rem;
+      --radius-full: 9999px;
+      /* === 阴影 === */
+      --shadow-card:   0 2px 8px rgba(0,0,0,0.08);
+      --shadow-float:  0 10px 25px rgba(0,0,0,0.10);
+      --shadow-dialog: 0 25px 50px rgba(0,0,0,0.12);
+      /* === 字体 === */
+      --font-sans: "Inter", "Noto Sans SC", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+    }
+  </style>
+
+  <!-- 图片兜底 -->
+  <script>
+    document.addEventListener('error', function (e) {
+      const img = e.target;
+      if (img.tagName !== 'IMG' || img.dataset.fallback) return;
+      img.dataset.fallback = '1';
+      const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const cat = img.getAttribute('data-category') || '其他';
+      const alt = img.getAttribute('alt') || '';
+      const label = esc(alt.length > 8 ? alt.slice(0, 8) + '…' : alt);
+      const icons = { '人物': '👤', '自然风景': '🏞', '动物': '🐾', '建筑城市': '🏙', '运动体育': '⚽', '交通工具': '🚗', '食物': '🍽', '服饰时尚': '👗', '商业科技': '💼', '游戏娱乐': '🎮', '艺术': '🎨', '其他': '🖼' };
+      const icon = icons[cat] || '🖼';
+      const w = img.width || 400, h = img.height || 300;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="45%" text-anchor="middle" font-size="${Math.min(w, h) * 0.18}" dominant-baseline="central">${icon}</text><text x="50%" y="68%" text-anchor="middle" font-size="${Math.min(w, h) * 0.07}" fill="%239ca3af" font-family="system-ui,sans-serif" dominant-baseline="central">${label}</text></svg>`;
+      img.src = 'data:image/svg+xml,' + svg;
+    }, true);
+  </script>
+</head>
+
+<body class="bg-background text-on-surface font-sans">
+
+  <!-- @nav:start 导航组件，不需要的页面则不要复制此段（从 @nav:start 到 @nav:end） -->
+  <header class="bg-surface/80 backdrop-blur-sm sticky top-0 z-40 h-14 flex items-center justify-between px-6 border-b border-outline/20">
+    <a href="home.html" class="flex items-center gap-2.5">
+      <i data-lucide="braces" class="text-primary w-5 h-5"></i>
+      <span class="font-bold text-lg text-on-surface">CodeForge</span>
+      <span class="text-[10px] text-on-primary bg-primary px-1.5 py-0.5 rounded-sm font-medium">Academy</span>
+    </a>
+    <nav class="flex items-center gap-1">
+      <a href="home.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">首页</a>
+      <a href="rust.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">Rust</a>
+      <a href="algorithm.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">算法</a>
+      <a href="agent.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">Agent</a>
+      <a href="practice.html" class="px-3 py-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors">练习</a>
+      <a href="learning-path.html" class="px-3 py-1.5 text-sm text-primary bg-primary/10 rounded-md font-medium" aria-current="page">路径</a>
+    </nav>
+    <div class="flex items-center gap-3">
+      <button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+        <i data-lucide="search" class="w-4 h-4"></i>
+      </button>
+      <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary cursor-pointer hover:bg-primary/20 transition-colors">初</div>
+    </div>
+  </header>
+  <div class="flex" style="height: calc(100vh - 3.5rem)">
+    <aside class="w-52 shrink-0 bg-surface-container-lowest/50 border-r border-outline/10 overflow-y-auto">
+      <nav class="p-3 space-y-1">
+        <a href="home.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="home" class="w-4 h-4"></i>首页
+        </a>
+        <a href="rust.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="cog" class="w-4 h-4"></i>Rust 编程
+        </a>
+        <a href="algorithm.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="binary" class="w-4 h-4"></i>数据结构与算法
+        </a>
+        <a href="agent.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="bot" class="w-4 h-4"></i>AI Agent
+        </a>
+        <div class="my-2 mx-3 border-t border-outline/10"></div>
+        <a href="practice.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="terminal" class="w-4 h-4"></i>在线练习
+        </a>
+        <a href="learning-path.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md bg-primary/10 text-primary font-medium text-sm" aria-current="page">
+          <i data-lucide="map" class="w-4 h-4"></i>学习路径
+        </a>
+        <a href="profile.html" class="flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm transition-colors">
+          <i data-lucide="user" class="w-4 h-4"></i>个人中心
+        </a>
+      </nav>
+      <!-- 小板报：学习日历 -->
+      <div class="mx-3 mt-4 p-3 bg-surface rounded-lg border border-outline/10">
+        <div class="text-xs font-medium text-on-surface-variant mb-2">学习小板报</div>
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between"><span class="text-on-surface-variant">今日</span><span class="text-primary font-medium">已学 45 分钟</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本周</span><span class="text-on-surface">5/7 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">本月</span><span class="text-on-surface">18/30 天</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant">连续打卡</span><span class="text-error font-medium">15 天</span></div>
+        </div>
+      </div>
+    </aside>
+  <!-- @nav:end 导航组件，不需要的页面则不要复制此段 -->
+
+  <main class="flex-1 min-w-0 overflow-y-auto bg-background">
+    <!-- @main-content:start -->
+    <div class="px-8 py-10">
+      <div class="max-w-5xl mx-auto">
+
+        <!-- 页面标题区 -->
+        <div class="mb-10">
+          <h1 class="text-2xl font-bold text-on-surface">学习路径规划</h1>
+          <p class="text-sm text-on-surface-variant mt-2 leading-relaxed">选择你的技术方向，按照系统化的路线图循序渐进，从基础到实战逐步掌握核心技能。</p>
+        </div>
+
+        <!-- 路径选择区域 -->
+        <div class="grid grid-cols-3 gap-4 mb-12">
+          <!-- 路径卡片-1：Rust全栈开发（选中态） -->
+          <div id="path-card-rust" class="path-card bg-surface rounded-lg shadow-card p-5 cursor-pointer border-2 border-primary/30 ring-2 ring-primary/10 transition-all hover:shadow-float" data-path="rust">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <i data-lucide="cog" class="w-4.5 h-4.5 text-primary"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-semibold text-on-surface">Rust 全栈开发</h3>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-on-surface-variant">
+              <span class="flex items-center gap-1"><i data-lucide="book-open" class="w-3.5 h-3.5"></i>6 门课程</span>
+              <span class="flex items-center gap-1"><i data-lucide="signal" class="w-3.5 h-3.5"></i>入门 → 进阶</span>
+            </div>
+            <div class="mt-3">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-success/15 text-success">进行中</span>
+            </div>
+          </div>
+
+          <!-- 路径卡片-2：算法面试突破 -->
+          <div id="path-card-algorithm" class="path-card bg-surface rounded-lg shadow-card p-5 cursor-pointer border-2 border-transparent transition-all hover:shadow-float" data-path="algorithm">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-9 h-9 rounded-lg bg-warning/10 flex items-center justify-center">
+                <i data-lucide="binary" class="w-4.5 h-4.5 text-warning"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-semibold text-on-surface">算法面试突破</h3>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-on-surface-variant">
+              <span class="flex items-center gap-1"><i data-lucide="book-open" class="w-3.5 h-3.5"></i>5 门课程</span>
+              <span class="flex items-center gap-1"><i data-lucide="signal" class="w-3.5 h-3.5"></i>中等 → 困难</span>
+            </div>
+            <div class="mt-3">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-on-surface-variant/15 text-on-surface-variant">未开始</span>
+            </div>
+          </div>
+
+          <!-- 路径卡片-3：AI Agent开发 -->
+          <div id="path-card-agent" class="path-card bg-surface rounded-lg shadow-card p-5 cursor-pointer border-2 border-transparent transition-all hover:shadow-float" data-path="agent">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-9 h-9 rounded-lg bg-error/10 flex items-center justify-center">
+                <i data-lucide="bot" class="w-4.5 h-4.5 text-error"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-semibold text-on-surface">AI Agent 开发</h3>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-on-surface-variant">
+              <span class="flex items-center gap-1"><i data-lucide="book-open" class="w-3.5 h-3.5"></i>4 门课程</span>
+              <span class="flex items-center gap-1"><i data-lucide="signal" class="w-3.5 h-3.5"></i>进阶 → 高级</span>
+            </div>
+            <div class="mt-3">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-on-surface-variant/15 text-on-surface-variant">未开始</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 内容区：路线图 + 右侧边栏 -->
+        <div class="flex gap-8">
+
+          <!-- 左侧：详细路线图 -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 mb-6">
+              <h2 class="text-lg font-bold text-on-surface">Rust 全栈开发 · 学习路线图</h2>
+              <span class="text-xs text-on-surface-variant">共 6 个阶段 · 62 课时</span>
+            </div>
+
+            <!-- 时间轴 -->
+            <div class="relative" id="timeline">
+              <!-- 竖线 -->
+              <div class="absolute left-[19px] top-6 bottom-6 w-px bg-outline"></div>
+
+              <!-- 阶段-1：Rust 基础语法（已完成） -->
+              <div class="relative pl-14 pb-10">
+                <div class="absolute left-2.5 top-1 w-[30px] h-[30px] rounded-full bg-success flex items-center justify-center shadow-card">
+                  <i data-lucide="check" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="bg-surface rounded-lg shadow-card p-5">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-medium text-success bg-success/10 px-2 py-0.5 rounded-sm">已完成</span>
+                      <span class="text-xs text-on-surface-variant">阶段 1</span>
+                    </div>
+                    <span class="text-xs text-on-surface-variant flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i>8 课时</span>
+                  </div>
+                  <h3 class="text-base font-semibold text-on-surface mb-1">Rust 基础语法</h3>
+                  <p class="text-sm text-on-surface-variant mb-3 leading-relaxed">掌握 Rust 的基本语法规则，包括变量绑定、数据类型、函数定义、控制流语句等核心概念，为后续深入学习打下坚实基础。</p>
+                  <div class="flex flex-wrap gap-2">
+                    <a href="course-detail.html?id=rust-1" class="text-xs text-primary hover:underline bg-primary/5 px-2.5 py-1 rounded-md">变量与类型系统</a>
+                    <a href="course-detail.html?id=rust-2" class="text-xs text-primary hover:underline bg-primary/5 px-2.5 py-1 rounded-md">函数与控制流</a>
+                    <a href="course-detail.html?id=rust-3" class="text-xs text-primary hover:underline bg-primary/5 px-2.5 py-1 rounded-md">结构体与枚举</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 阶段-2：所有权与内存管理（已完成） -->
+              <div class="relative pl-14 pb-10">
+                <div class="absolute left-2.5 top-1 w-[30px] h-[30px] rounded-full bg-success flex items-center justify-center shadow-card">
+                  <i data-lucide="check" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="bg-surface rounded-lg shadow-card p-5">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-medium text-success bg-success/10 px-2 py-0.5 rounded-sm">已完成</span>
+                      <span class="text-xs text-on-surface-variant">阶段 2</span>
+                    </div>
+                    <span class="text-xs text-on-surface-variant flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i>10 课时</span>
+                  </div>
+                  <h3 class="text-base font-semibold text-on-surface mb-1">所有权与内存管理</h3>
+                  <p class="text-sm text-on-surface-variant mb-3 leading-relaxed">深入理解 Rust 独特的所有权机制、借用规则和生命周期标注，掌握内存安全的核心原理，编写无内存泄漏的高效代码。</p>
+                  <div class="flex flex-wrap gap-2">
+                    <a href="course-detail.html?id=rust-4" class="text-xs text-primary hover:underline bg-primary/5 px-2.5 py-1 rounded-md">所有权规则详解</a>
+                    <a href="course-detail.html?id=rust-5" class="text-xs text-primary hover:underline bg-primary/5 px-2.5 py-1 rounded-md">引用与借用</a>
+                    <a href="course-detail.html?id=rust-6" class="text-xs text-primary hover:underline bg-primary/5 px-2.5 py-1 rounded-md">生命周期标注</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 阶段-3：数据结构与集合（当前进行中） -->
+              <div class="relative pl-14 pb-10">
+                <div class="absolute left-2.5 top-1 w-[30px] h-[30px] rounded-full bg-primary flex items-center justify-center shadow-card ring-4 ring-primary/20">
+                  <i data-lucide="play" class="w-3.5 h-3.5 text-white fill-white"></i>
+                </div>
+                <div class="bg-surface rounded-lg shadow-card p-5 border border-primary/20">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-sm">进行中</span>
+                      <span class="text-xs text-on-surface-variant">阶段 3</span>
+                    </div>
+                    <span class="text-xs text-on-surface-variant flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i>12 课时</span>
+                  </div>
+                  <h3 class="text-base font-semibold text-on-surface mb-1">数据结构与集合</h3>
+                  <p class="text-sm text-on-surface-variant mb-3 leading-relaxed">学习 Rust 标准库中的核心数据结构，包括 Vec、HashMap、HashSet 等集合类型，以及枚举和模式匹配的高级用法。</p>
+                  <div class="flex flex-wrap gap-2">
+                    <a href="course-detail.html?id=rust-7" class="text-xs text-primary hover:underline bg-primary/5 px-2.5 py-1 rounded-md">Vec 与动态数组</a>
+                    <a href="course-detail.html?id=rust-8" class="text-xs text-primary hover:underline bg-primary/5 px-2.5 py-1 rounded-md">HashMap 与键值存储</a>
+                    <a href="course-detail.html?id=rust-9" class="text-xs text-primary hover:underline bg-primary/5 px-2.5 py-1 rounded-md">枚举与模式匹配</a>
+                    <a href="course-detail.html?id=rust-10" class="text-xs text-primary hover:underline bg-primary/5 px-2.5 py-1 rounded-md">迭代器与闭包</a>
+                  </div>
+                  <!-- 进度条 -->
+                  <div class="mt-4 pt-3 border-t border-outline/10">
+                    <div class="flex items-center justify-between text-xs text-on-surface-variant mb-1.5">
+                      <span>学习进度</span>
+                      <span class="font-medium text-primary">5 / 12 课时</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+                      <div class="h-full bg-primary rounded-full" style="width: 42%"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 阶段-4：并发编程（未解锁） -->
+              <div class="relative pl-14 pb-10">
+                <div class="absolute left-2.5 top-1 w-[30px] h-[30px] rounded-full bg-surface-container-high flex items-center justify-center border-2 border-outline">
+                  <i data-lucide="lock" class="w-3.5 h-3.5 text-on-surface-variant"></i>
+                </div>
+                <div class="bg-surface-container-lowest rounded-lg p-5 border border-outline/20 opacity-70">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-medium text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">未解锁</span>
+                      <span class="text-xs text-on-surface-variant">阶段 4</span>
+                    </div>
+                    <span class="text-xs text-on-surface-variant flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i>10 课时</span>
+                  </div>
+                  <h3 class="text-base font-semibold text-on-surface/60 mb-1">并发编程</h3>
+                  <p class="text-sm text-on-surface-variant/70 mb-3 leading-relaxed">学习 Rust 的并发模型，包括线程创建、消息传递、共享状态同步，以及 async/await 异步编程范式。</p>
+                  <div class="flex flex-wrap gap-2">
+                    <span class="text-xs text-on-surface-variant/60 bg-surface-container px-2.5 py-1 rounded-md">线程与 JoinHandle</span>
+                    <span class="text-xs text-on-surface-variant/60 bg-surface-container px-2.5 py-1 rounded-md">Channel 消息传递</span>
+                    <span class="text-xs text-on-surface-variant/60 bg-surface-container px-2.5 py-1 rounded-md">Arc 与 Mutex</span>
+                    <span class="text-xs text-on-surface-variant/60 bg-surface-container px-2.5 py-1 rounded-md">Async/Await 入门</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 阶段-5：Web 开发实战（未解锁） -->
+              <div class="relative pl-14 pb-10">
+                <div class="absolute left-2.5 top-1 w-[30px] h-[30px] rounded-full bg-surface-container-high flex items-center justify-center border-2 border-outline">
+                  <i data-lucide="lock" class="w-3.5 h-3.5 text-on-surface-variant"></i>
+                </div>
+                <div class="bg-surface-container-lowest rounded-lg p-5 border border-outline/20 opacity-70">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-medium text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">未解锁</span>
+                      <span class="text-xs text-on-surface-variant">阶段 5</span>
+                    </div>
+                    <span class="text-xs text-on-surface-variant flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i>14 课时</span>
+                  </div>
+                  <h3 class="text-base font-semibold text-on-surface/60 mb-1">Web 开发实战</h3>
+                  <p class="text-sm text-on-surface-variant/70 mb-3 leading-relaxed">使用 Actix-web 框架构建完整的 Web 应用，涵盖路由设计、中间件、数据库集成、RESTful API 设计与实现。</p>
+                  <div class="flex flex-wrap gap-2">
+                    <span class="text-xs text-on-surface-variant/60 bg-surface-container px-2.5 py-1 rounded-md">Actix-web 框架入门</span>
+                    <span class="text-xs text-on-surface-variant/60 bg-surface-container px-2.5 py-1 rounded-md">数据库与 SQLx</span>
+                    <span class="text-xs text-on-surface-variant/60 bg-surface-container px-2.5 py-1 rounded-md">RESTful API 设计</span>
+                    <span class="text-xs text-on-surface-variant/60 bg-surface-container px-2.5 py-1 rounded-md">认证与授权</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 阶段-6：项目部署与优化（未解锁） -->
+              <div class="relative pl-14 pb-2">
+                <div class="absolute left-2.5 top-1 w-[30px] h-[30px] rounded-full bg-surface-container-high flex items-center justify-center border-2 border-outline">
+                  <i data-lucide="lock" class="w-3.5 h-3.5 text-on-surface-variant"></i>
+                </div>
+                <div class="bg-surface-container-lowest rounded-lg p-5 border border-outline/20 opacity-70">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-medium text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-sm">未解锁</span>
+                      <span class="text-xs text-on-surface-variant">阶段 6</span>
+                    </div>
+                    <span class="text-xs text-on-surface-variant flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i>8 课时</span>
+                  </div>
+                  <h3 class="text-base font-semibold text-on-surface/60 mb-1">项目部署与优化</h3>
+                  <p class="text-sm text-on-surface-variant/70 mb-3 leading-relaxed">学习 Rust 项目的容器化部署、性能分析与调优技巧、CI/CD 流水线搭建，以及生产环境的最佳实践。</p>
+                  <div class="flex flex-wrap gap-2">
+                    <span class="text-xs text-on-surface-variant/60 bg-surface-container px-2.5 py-1 rounded-md">Docker 容器化</span>
+                    <span class="text-xs text-on-surface-variant/60 bg-surface-container px-2.5 py-1 rounded-md">性能分析与调优</span>
+                    <span class="text-xs text-on-surface-variant/60 bg-surface-container px-2.5 py-1 rounded-md">CI/CD 流水线</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- 右侧边栏 -->
+          <div class="w-64 shrink-0 space-y-6">
+
+            <!-- 整体进度卡片 -->
+            <div class="bg-surface rounded-lg shadow-card p-5">
+              <h3 class="text-sm font-semibold text-on-surface mb-4 flex items-center gap-2">
+                <i data-lucide="target" class="w-4 h-4 text-primary"></i>整体进度
+              </h3>
+              <div class="text-center mb-4">
+                <div class="text-3xl font-bold text-primary">33%</div>
+                <div class="text-xs text-on-surface-variant mt-1">已完成 2 / 6 阶段</div>
+              </div>
+              <div class="w-full h-2 bg-surface-container rounded-full overflow-hidden mb-4">
+                <div id="progress-bar" class="h-full bg-primary rounded-full transition-all" style="width: 33%"></div>
+              </div>
+              <div class="space-y-2 text-xs">
+                <div class="flex justify-between items-center">
+                  <span class="text-on-surface-variant">已学课时</span>
+                  <span class="font-medium text-on-surface">18 / 62</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-on-surface-variant">累计学习</span>
+                  <span class="font-medium text-on-surface">12.5 小时</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-on-surface-variant">预计剩余</span>
+                  <span class="font-medium text-on-surface">约 29 小时</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 推荐学习资源 -->
+            <div class="bg-surface rounded-lg shadow-card p-5">
+              <h3 class="text-sm font-semibold text-on-surface mb-4 flex items-center gap-2">
+                <i data-lucide="bookmark" class="w-4 h-4 text-warning"></i>推荐资源
+              </h3>
+              <div class="space-y-4">
+                <!-- 书籍推荐 -->
+                <div>
+                  <div class="text-xs font-medium text-on-surface-variant mb-2 flex items-center gap-1.5">
+                    <i data-lucide="book" class="w-3 h-3"></i>书籍
+                  </div>
+                  <div class="space-y-1.5">
+                    <a href="#" id="resource-book-1" class="block text-xs text-on-surface hover:text-primary transition-colors leading-relaxed">《Rust 程序设计语言》</a>
+                    <a href="#" id="resource-book-2" class="block text-xs text-on-surface hover:text-primary transition-colors leading-relaxed">《Programming Rust 2nd Ed.》</a>
+                    <a href="#" id="resource-book-3" class="block text-xs text-on-surface hover:text-primary transition-colors leading-relaxed">《Rust 编程之道》</a>
+                  </div>
+                </div>
+                <!-- 视频推荐 -->
+                <div>
+                  <div class="text-xs font-medium text-on-surface-variant mb-2 flex items-center gap-1.5">
+                    <i data-lucide="video" class="w-3 h-3"></i>视频
+                  </div>
+                  <div class="space-y-1.5">
+                    <a href="#" id="resource-video-1" class="block text-xs text-on-surface hover:text-primary transition-colors leading-relaxed">Rust 官方教程系列</a>
+                    <a href="#" id="resource-video-2" class="block text-xs text-on-surface hover:text-primary transition-colors leading-relaxed">Let's Build a Web Server</a>
+                  </div>
+                </div>
+                <!-- 练习平台 -->
+                <div>
+                  <div class="text-xs font-medium text-on-surface-variant mb-2 flex items-center gap-1.5">
+                    <i data-lucide="code" class="w-3 h-3"></i>练习平台
+                  </div>
+                  <div class="space-y-1.5">
+                    <a href="practice.html" id="resource-practice-1" class="block text-xs text-on-surface hover:text-primary transition-colors leading-relaxed">Rustlings 练习题集</a>
+                    <a href="practice.html" id="resource-practice-2" class="block text-xs text-on-surface hover:text-primary transition-colors leading-relaxed">Exercism Rust Track</a>
+                  </div>
+                </div>
+                <!-- 社区文档 -->
+                <div>
+                  <div class="text-xs font-medium text-on-surface-variant mb-2 flex items-center gap-1.5">
+                    <i data-lucide="file-text" class="w-3 h-3"></i>社区文档
+                  </div>
+                  <div class="space-y-1.5">
+                    <a href="#" id="resource-doc-1" class="block text-xs text-on-surface hover:text-primary transition-colors leading-relaxed">Rust 官方文档</a>
+                    <a href="#" id="resource-doc-2" class="block text-xs text-on-surface hover:text-primary transition-colors leading-relaxed">Rust 中文社区</a>
+                    <a href="#" id="resource-doc-3" class="block text-xs text-on-surface hover:text-primary transition-colors leading-relaxed">Rust By Example</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 学习提示 -->
+            <div class="bg-primary/5 rounded-lg p-4 border border-primary/10">
+              <div class="flex items-start gap-2">
+                <i data-lucide="lightbulb" class="w-4 h-4 text-primary mt-0.5 shrink-0"></i>
+                <div>
+                  <div class="text-xs font-medium text-on-surface mb-1">学习建议</div>
+                  <p class="text-xs text-on-surface-variant leading-relaxed">建议每天保持 1-2 小时的学习节奏，完成每个阶段的练习后再进入下一阶段。遇到难点可参考右侧推荐资源。</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <!-- @main-content:end -->
+  </main>
+
+  <script>lucide.createIcons();</script>
+
+  <script>
+  $(function() {
+    // 路径卡片切换
+    // 点击路径卡片时，切换选中态样式：
+    // 1. 移除所有卡片的选中样式（border-primary/30, ring-2 ring-primary/10）
+    // 2. 为当前卡片添加选中样式
+    // 3. 更新路线图区域的标题和内容（后续应实现根据选中路径切换不同的路线图数据）
+    // 4. 更新右侧边栏的进度信息
+    $('.path-card').on('click', function() {
+      var path = $(this).data('path');
+      
+      // 重置所有卡片样式
+      $('.path-card').removeClass('border-primary/30 ring-2 ring-primary/10').addClass('border-transparent');
+      
+      // 设置当前卡片为选中态
+      $(this).removeClass('border-transparent').addClass('border-primary/30 ring-2 ring-primary/10');
+      
+      console.log('切换学习路径:', path);
+    });
+
+    // 阶段卡片点击 - 跳转到对应课程
+    // 已完成和进行中的阶段可以点击课程链接跳转
+    // 未解锁的阶段点击时应提示"请先完成前置阶段"
+    $('#timeline').on('click', '.path-stage-locked', function() {
+      console.log('该阶段尚未解锁，请先完成前置阶段');
+    });
+  });
+  </script>
+
+</body>
+
+</html>
