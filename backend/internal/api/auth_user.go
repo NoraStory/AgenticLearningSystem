@@ -123,13 +123,54 @@ func (s *Server) uploadAvatar(c *gin.Context) {
 	success(c, gin.H{"avatar": key})
 }
 func (s *Server) streak(c *gin.Context) {
+	uid := userID(c)
 	now := time.Now()
-	weekDays := []bool{true, true, true, true, true, false, false}
-	month := make([]bool, 30)
-	for i := 0; i < 15; i++ {
-		month[i] = true
+	today := now.Truncate(24 * time.Hour)
+
+	// 今日学习时长
+	var todayMinutes int64
+	s.services.DB.Model(&model.DailyStudyTime{}).Where("user_id = ? AND study_date = ?", uid, today).
+		Select("COALESCE(SUM(duration_minutes),0)").Scan(&todayMinutes)
+
+	// 本周打卡（周一到周日）
+	weekStart := today.AddDate(0, 0, -(int(now.Weekday())+6)%7)
+	weekDays := make([]bool, 7)
+	weekTotal := 0
+	for i := 0; i < 7; i++ {
+		day := weekStart.AddDate(0, 0, i)
+		var cnt int64
+		s.services.DB.Model(&model.DailyStudyTime{}).Where("user_id = ? AND study_date = ?", uid, day).Count(&cnt)
+		weekDays[i] = cnt > 0
+		if cnt > 0 {
+			weekTotal++
+		}
 	}
-	success(c, gin.H{"date": now.Format("2006-01-02"), "today_minutes": 48, "week_days": weekDays, "week_total_days": 5, "month_days": month, "month_total_days": 15, "streak_days": 15})
+
+	// 本月打卡（30 天）
+	monthDays := make([]bool, 30)
+	monthTotal := 0
+	for i := 0; i < 30; i++ {
+		day := today.AddDate(0, 0, -i)
+		var cnt int64
+		s.services.DB.Model(&model.DailyStudyTime{}).Where("user_id = ? AND study_date = ?", uid, day).Count(&cnt)
+		monthDays[29-i] = cnt > 0
+		if cnt > 0 {
+			monthTotal++
+		}
+	}
+
+	// 真实连续天数
+	streakDays := s.computeStreak(uid)
+
+	success(c, gin.H{
+		"date":            now.Format("2006-01-02"),
+		"today_minutes":   int(todayMinutes),
+		"week_days":       weekDays,
+		"week_total_days": weekTotal,
+		"month_days":      monthDays,
+		"month_total_days": monthTotal,
+		"streak_days":     streakDays,
+	})
 }
 func (s *Server) progress(c *gin.Context) {
 	type row struct {

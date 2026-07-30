@@ -350,6 +350,15 @@ func (s *Server) submitCode(c *gin.Context) {
 	if accepted {
 		s.services.DB.Model(&model.Problem{}).Where("id = ?", in.ProblemID).Update("status", "solved")
 		s.addActivity(userID(c), "problem", "完成了一道算法练习")
+		var prob model.Problem
+		if s.services.DB.Where("id = ?", in.ProblemID).First(&prob).Error == nil {
+			skillName := prob.Title
+			if len(skillName) > 120 {
+				skillName = skillName[:120]
+			}
+			s.recordKnowledgeState(userID(c), skillName, "algorithm", accepted)
+		}
+		s.updateProfileFromActivity(userID(c))
 	}
 	success(c, gin.H{"status": status, "passed_cases": passed, "total_cases": 3, "execution_time_ms": result.ExecutionTimeMS, "memory_kb": result.MemoryKB, "ranking_percentile": func() int {
 		if accepted {

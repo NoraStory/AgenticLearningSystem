@@ -156,6 +156,7 @@ func (s *Server) agentChat(c *gin.Context) {
 	resultJSON, _ := json.Marshal(gin.H{"answer": answer.String(), "session_id": in.SessionID})
 	s.services.DB.Model(&wf).Updates(map[string]any{"status": "completed", "current_node": "done", "result_json": string(resultJSON)})
 	s.addActivity(uid, "agent", "与 "+in.AgentType+" 完成了一次动态工具协作")
+	s.updateProfileFromActivity(uid)
 	writeSSE(c, "done", gin.H{"session_id": in.SessionID, "workflow_id": workflowID, "agent": in.AgentType})
 	c.Writer.Flush()
 }
@@ -292,8 +293,143 @@ func (s *Server) agentProfile(c *gin.Context) {
 		p = model.UserProfile{ID: uuid.NewString(), UserID: userID(c), Level: "初级开发者", FocusAreas: []string{}, WeakAreas: []string{}, LearningStyle: "实践型", PreferredDifficulty: "简单", DailyGoal: 30}
 		s.services.DB.Create(&p)
 	}
-	success(c, gin.H{"level": p.Level, "focus_areas": p.FocusAreas, "focusAreas": p.FocusAreas, "weak_areas": p.WeakAreas, "weakAreas": p.WeakAreas, "learning_style": p.LearningStyle, "learningStyle": p.LearningStyle, "preferred_difficulty": p.PreferredDifficulty, "preferredDifficulty": p.PreferredDifficulty, "daily_goal": p.DailyGoal, "dailyGoal": p.DailyGoal, "total_study_time": p.TotalStudyTime, "totalStudyTime": p.TotalStudyTime, "streak": p.Streak})
+	level, levelTitle := computeLevel(p.TotalStudyTime, 0, p.ProblemSolvedCount, p.Streak)
+	success(c, gin.H{"level": p.Level, "computed_level": level, "level_title": levelTitle, "focus_areas": p.FocusAreas, "focusAreas": p.FocusAreas, "weak_areas": p.WeakAreas, "weakAreas": p.WeakAreas, "learning_style": p.LearningStyle, "learningStyle": p.LearningStyle, "preferred_difficulty": p.PreferredDifficulty, "preferredDifficulty": p.PreferredDifficulty, "preferred_time_slot": p.PreferredTimeSlot, "daily_goal": p.DailyGoal, "dailyGoal": p.DailyGoal, "total_study_time": p.TotalStudyTime, "totalStudyTime": p.TotalStudyTime, "streak": p.Streak, "session_count": p.SessionCount, "problem_solved_count": p.ProblemSolvedCount, "problem_accuracy": p.ProblemAccuracy, "last_active_at": p.LastActiveAt})
 }
+func (s *Server) updateProfile(c *gin.Context) {
+	var in struct {
+		LearningStyle       *string  `json:"learning_style"`
+		PreferredDifficulty *string  `json:"preferred_difficulty"`
+		PreferredTimeSlot   *string  `json:"preferred_time_slot"`
+		DailyGoal           *int     `json:"daily_goal"`
+		FocusAreas          []string `json:"focus_areas"`
+		WeakAreas           []string `json:"weak_areas"`
+	}
+	if c.ShouldBindJSON(&in) != nil {
+		fail(c, 400, 400, "请求格式错误")
+		return
+	}
+	uid := userID(c)
+	var p model.UserProfile
+	if s.services.DB.Where("user_id = ?", uid).First(&p).Error != nil {
+		p = model.UserProfile{ID: uuid.NewString(), UserID: uid, Level: "新手开发者", FocusAreas: []string{}, WeakAreas: []string{}, LearningStyle: "实践型", PreferredDifficulty: "简单", DailyGoal: 30}
+		s.services.DB.Create(&p)
+	}
+	updates := map[string]any{}
+	if in.LearningStyle != nil { updates["learning_style"] = *in.LearningStyle }
+	if in.PreferredDifficulty != nil { updates["preferred_difficulty"] = *in.PreferredDifficulty }
+	if in.PreferredTimeSlot != nil { updates["preferred_time_slot"] = *in.PreferredTimeSlot }
+	if in.DailyGoal != nil { updates["daily_goal"] = *in.DailyGoal }
+	if in.FocusAreas != nil { updates["focus_areas"] = in.FocusAreas }
+	if in.WeakAreas != nil { updates["weak_areas"] = in.WeakAreas }
+	if len(updates) > 0 {
+		s.services.DB.Model(&p).Updates(updates)
+	}
+	s.services.DB.Where("user_id = ?", uid).First(&p)
+	level, levelTitle := computeLevel(p.TotalStudyTime, 0, p.ProblemSolvedCount, p.Streak)
+	success(c, gin.H{
+		"level": p.Level, "computed_level": level, "level_title": levelTitle,
+		"focus_areas": p.FocusAreas, "weak_areas": p.WeakAreas,
+		"learning_style": p.LearningStyle, "preferred_difficulty": p.PreferredDifficulty,
+		"preferred_time_slot": p.PreferredTimeSlot, "daily_goal": p.DailyGoal,
+		"total_study_time": p.TotalStudyTime, "streak": p.Streak,
+		"session_count": p.SessionCount, "problem_solved_count": p.ProblemSolvedCount,
+		"problem_accuracy": p.ProblemAccuracy, "last_active_at": p.LastActiveAt,
+	})
+}
+
+func (s *Server) knowledgeStates(c *gin.Context) {
+	var rows []model.KnowledgeState
+	q := s.services.DB.Where("user_id = ?", userID(c))
+	if cat := c.Query("category"); cat != "" {
+		q = q.Where("category = ?", cat)
+	}
+	q.Order("updated_at desc").Limit(200).Find(&rows)
+	items := make([]gin.H, 0, len(rows))
+	for _, r := range rows {
+		items = append(items, gin.H{
+			"skill_name": r.SkillName, "category": r.Category,
+			"mastery": r.Mastery, "attempts": r.Attempts,
+			"correct_count": r.CorrectCount, "last_practiced_at": r.LastPracticedAt,
+		})
+	}
+	success(c, gin.H{"items": items})
+}
+
+func (s *Server) agentDashboard(c *gin.Context) {
+	uid := userID(c)
+	// 1. 热力图：最近 30 天每日学习时长 + 对话次数
+	type heatRow struct {
+		Date     time.Time
+		Minutes  int
+		Sessions int
+	}
+	var heat []heatRow
+	s.services.DB.Model(&model.DailyStudyTime{}).
+		Select("study_date as date, sum(duration_minutes) as minutes, count(*) as sessions").
+		Where("user_id = ? AND study_date >= ?", uid, time.Now().AddDate(0, 0, -30)).
+		Group("study_date").Order("study_date").Scan(&heat)
+	heatItems := make([]gin.H, 0, len(heat))
+	for _, h := range heat {
+		heatItems = append(heatItems, gin.H{"date": h.Date.Format("2006-01-02"), "minutes": h.Minutes, "sessions": h.Sessions})
+	}
+
+	// 2. 雷达图：按 5 大方向计算平均掌握度
+	type catRow struct {
+		Category string
+		AvgMastery float64
+	}
+	var cats []catRow
+	s.services.DB.Model(&model.KnowledgeState{}).
+		Select("category, avg(mastery) as avg_mastery").
+		Where("user_id = ?", uid).Group("category").Scan(&cats)
+	radarItems := make([]gin.H, 0, len(cats))
+	for _, c2 := range cats {
+		radarItems = append(radarItems, gin.H{"category": c2.Category, "mastery": c2.AvgMastery})
+	}
+
+	// 3. 趋势线：最近 7 天每日学习时长
+	type trendRow struct {
+		Date    time.Time
+		Minutes int
+	}
+	var trends []trendRow
+	s.services.DB.Model(&model.DailyStudyTime{}).
+		Select("study_date as date, sum(duration_minutes) as minutes").
+		Where("user_id = ? AND study_date >= ?", uid, time.Now().AddDate(0, 0, -7)).
+		Group("study_date").Order("study_date").Scan(&trends)
+	trendItems := make([]gin.H, 0, len(trends))
+	for _, t := range trends {
+		trendItems = append(trendItems, gin.H{"date": t.Date.Format("2006-01-02"), "minutes": t.Minutes})
+	}
+
+	// 4. 统计汇总
+	var totalMinutes int64
+	s.services.DB.Model(&model.DailyStudyTime{}).Where("user_id = ?", uid).Select("COALESCE(SUM(duration_minutes),0)").Scan(&totalMinutes)
+	var totalSessions int64
+	s.services.DB.Model(&model.SessionMessage{}).Where("user_id = ? AND role = ?", uid, "assistant").Count(&totalSessions)
+	var totalProblems int64
+	s.services.DB.Model(&model.Submission{}).Where("user_id = ? AND passed = ?", uid, true).Count(&totalProblems)
+	var totalSub int64
+	s.services.DB.Model(&model.Submission{}).Where("user_id = ?", uid).Count(&totalSub)
+	var accuracy float64
+	if totalSub > 0 {
+		accuracy = float64(totalProblems) / float64(totalSub)
+	}
+
+	success(c, gin.H{
+		"heatmap": heatItems,
+		"radar":   radarItems,
+		"trend":   trendItems,
+		"stats": gin.H{
+			"total_minutes":  int(totalMinutes),
+			"total_sessions": int(totalSessions),
+			"total_problems": int(totalProblems),
+			"avg_accuracy":   accuracy,
+		},
+	})
+}
+
 func (s *Server) agentKnowledge(c *gin.Context) {
 	var k model.UserKnowledgeGraph
 	if s.services.DB.Where("user_id = ?", userID(c)).First(&k).Error != nil {

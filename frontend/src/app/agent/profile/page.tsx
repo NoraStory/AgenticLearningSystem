@@ -1,75 +1,133 @@
 'use client';
 
-import { Brain, Target, TrendingUp, Award, BookOpen, Code, Database, Sparkles, Network } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Brain, Target, TrendingUp, Award, BookOpen, Code, Database, Sparkles, Network, Edit3, X, Flame, Clock, CheckCircle2 } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
 
-// 用户画像数据
-const fallbackProfile = {
-  level: '中级开发者',
-  focusAreas: ['Python', '数据结构', 'AI Agent'],
-  weakAreas: ['并发编程', '系统设计'],
-  learningStyle: '实践型',
-  preferredDifficulty: '中等',
-  dailyGoal: 60, // 分钟
-  totalStudyTime: 256, // 小时
-  streak: 15, // 天
+type Profile = {
+  level: string;
+  computed_level: number;
+  level_title: string;
+  focusAreas: string[];
+  weakAreas: string[];
+  learningStyle: string;
+  preferredDifficulty: string;
+  preferred_time_slot: string;
+  dailyGoal: number;
+  totalStudyTime: number;
+  streak: number;
+  sessionCount: number;
+  problemSolvedCount: number;
+  problemAccuracy: number;
+  lastActiveAt: string;
 };
 
-// 知识掌握度
-const fallbackKnowledgeAreas = [
-  { name: 'Python 基础', level: 85, icon: Code, color: 'bg-blue-500' },
-  { name: 'Python 进阶', level: 62, icon: Code, color: 'bg-blue-600' },
-  { name: 'C++ 基础', level: 45, icon: Code, color: 'bg-purple-500' },
-  { name: '数据结构', level: 58, icon: TrendingUp, color: 'bg-green-500' },
-  { name: '算法', level: 35, icon: Target, color: 'bg-orange-500' },
-  { name: '数据库', level: 40, icon: Database, color: 'bg-cyan-500' },
-  { name: 'AI Agent', level: 28, icon: Sparkles, color: 'bg-rose-500' },
-  { name: '系统设计', level: 15, icon: Brain, color: 'bg-indigo-500' },
-];
+type KnowledgeState = {
+  skill_name: string;
+  category: string;
+  mastery: number;
+  attempts: number;
+  correct_count: number;
+  last_practiced_at: string;
+};
 
-// 学习偏好
-const preferences = [
-  { label: '学习方式', value: '实践为主，理论为辅' },
-  { label: '偏好难度', value: '中等挑战' },
-  { label: '学习时段', value: '晚间 20:00-23:00' },
-  { label: '单次时长', value: '45-60 分钟' },
-  { label: '擅长领域', value: 'Python、Web 开发' },
-  { label: '待加强', value: '算法、并发编程' },
-];
+type Dashboard = {
+  heatmap: { date: string; minutes: number; sessions: number }[];
+  radar: { category: string; mastery: number }[];
+  trend: { date: string; minutes: number }[];
+  stats: { total_minutes: number; total_sessions: number; total_problems: number; avg_accuracy: number };
+};
 
-// 最近的知识图谱节点
-const fallbackRecentTopics = [
-  { name: 'Python 装饰器', connections: 5, mastery: 78 },
-  { name: '二叉树遍历', connections: 3, mastery: 65 },
-  { name: 'SQL 连接', connections: 4, mastery: 72 },
-  { name: 'LangChain Chain', connections: 2, mastery: 45 },
-  { name: '动态规划', connections: 6, mastery: 38 },
-];
+const timeSlotLabels: Record<string, string> = {
+  morning: '上午', afternoon: '下午', evening: '晚间', night: '深夜',
+};
+
+const categoryLabels: Record<string, string> = {
+  python: 'Python', cpp: 'C++', database: '数据库', algorithm: '算法', agent: 'AI Agent',
+};
+
+function masteryColor(m: number) {
+  if (m >= 0.85) return 'bg-green-500';
+  if (m >= 0.6) return 'bg-blue-500';
+  if (m >= 0.3) return 'bg-orange-500';
+  return 'bg-red-500';
+}
+
+function masteryText(m: number) {
+  if (m >= 0.85) return '精通';
+  if (m >= 0.6) return '熟练';
+  if (m >= 0.3) return '学习中';
+  return '入门';
+}
 
 export default function AgentProfilePage() {
-  const [profile, setProfile] = useState(fallbackProfile);
-  const [knowledgeAreas, setKnowledgeAreas] = useState(fallbackKnowledgeAreas);
-  const [recentTopics, setRecentTopics] = useState(fallbackRecentTopics);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [knowledgeStates, setKnowledgeStates] = useState<KnowledgeState[]>([]);
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ learning_style: '', preferred_difficulty: '', preferred_time_slot: '', daily_goal: 30, focus_areas: '', weak_areas: '' });
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     Promise.all([
-      apiFetch<{ level: string; focus_areas: string[]; weak_areas: string[]; learning_style: string; preferred_difficulty: string; daily_goal: number; total_study_time: number; streak: number }>('/api/v1/agent/profile'),
-      apiFetch<{ areas: Array<{ name: string; level: number; color: string }>; recent_topics: typeof fallbackRecentTopics }>('/api/v1/agent/knowledge'),
-    ]).then(([profileData, knowledge]) => {
-      setProfile({ level: profileData.level, focusAreas: profileData.focus_areas, weakAreas: profileData.weak_areas, learningStyle: profileData.learning_style, preferredDifficulty: profileData.preferred_difficulty, dailyGoal: profileData.daily_goal, totalStudyTime: profileData.total_study_time, streak: profileData.streak });
-      setKnowledgeAreas(knowledge.areas.map((area, index) => ({ ...fallbackKnowledgeAreas[index % fallbackKnowledgeAreas.length], ...area })));
-      setRecentTopics(knowledge.recent_topics);
+      apiFetch<Profile>('/api/v1/agent/profile'),
+      apiFetch<{ items: KnowledgeState[] }>('/api/v1/agent/knowledge-states'),
+      apiFetch<Dashboard>('/api/v1/agent/dashboard'),
+    ]).then(([p, ks, d]) => {
+      setProfile(p);
+      setKnowledgeStates(ks.items || []);
+      setDashboard(d);
     }).catch(() => undefined);
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const startEdit = () => {
+    if (!profile) return;
+    setEditForm({
+      learning_style: profile.learningStyle || '',
+      preferred_difficulty: profile.preferredDifficulty || '',
+      preferred_time_slot: profile.preferred_time_slot || '',
+      daily_goal: profile.dailyGoal || 30,
+      focus_areas: profile.focusAreas?.join(', ') || '',
+      weak_areas: profile.weakAreas?.join(', ') || '',
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    await apiFetch('/api/v1/agent/profile', {
+      method: 'PUT',
+      body: JSON.stringify({
+        learning_style: editForm.learning_style || undefined,
+        preferred_difficulty: editForm.preferred_difficulty || undefined,
+        preferred_time_slot: editForm.preferred_time_slot || undefined,
+        daily_goal: editForm.daily_goal || undefined,
+        focus_areas: editForm.focus_areas ? editForm.focus_areas.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+        weak_areas: editForm.weak_areas ? editForm.weak_areas.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+      }),
+    });
+    setEditing(false);
+    loadData();
+  };
+
+  if (!profile) {
+    return <div className="flex items-center justify-center h-96"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+  }
+
+  // 知识图谱节点：按 category 分组，取 mastery 最高的几个
+  const topSkills = [...knowledgeStates].sort((a, b) => b.mastery - a.mastery).slice(0, 12);
+
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto pb-8">
       {/* 页面标题 */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">学习画像</h1>
-        <p className="text-muted-foreground mt-2">
-          AI 基于你的学习行为生成的个性化画像，用于智能推荐和路由优化
-        </p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">学习画像</h1>
+          <p className="text-muted-foreground mt-2">基于学习行为动态生成的个性化画像，驱动智能推荐和路由优化</p>
+        </div>
+        <button onClick={startEdit} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-opacity text-sm font-medium">
+          <Edit3 className="w-4 h-4" /> 编辑画像
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -81,23 +139,39 @@ export default function AgentProfilePage() {
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <Brain className="w-6 h-6 text-primary" />
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="font-semibold text-foreground">{profile.level}</h3>
-                <p className="text-sm text-muted-foreground">Lv.5 进阶学习者</p>
+                <p className="text-sm text-muted-foreground">Lv.{profile.computed_level} {profile.level_title}</p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4 text-center">
+            {/* 经验条 */}
+            <div className="mb-4">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>等级进度</span>
+                <span>Lv.{profile.computed_level}</span>
+              </div>
+              <div className="h-2 bg-surface-container rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full transition-all" style={{ width: `${Math.min(100, (profile.computed_level / 10) * 100)}%` }} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-center">
               <div>
                 <div className="text-2xl font-bold text-foreground">{profile.totalStudyTime}h</div>
                 <div className="text-xs text-muted-foreground">总学习时长</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-foreground">{profile.streak}</div>
+                <div className="text-2xl font-bold text-foreground flex items-center justify-center gap-1">
+                  <Flame className="w-5 h-5 text-orange-500" />{profile.streak}
+                </div>
                 <div className="text-xs text-muted-foreground">连续打卡</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-foreground">{profile.dailyGoal}min</div>
-                <div className="text-xs text-muted-foreground">每日目标</div>
+                <div className="text-2xl font-bold text-foreground">{profile.sessionCount}</div>
+                <div className="text-xs text-muted-foreground">AI 对话次数</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-foreground">{profile.problemSolvedCount}</div>
+                <div className="text-xs text-muted-foreground">解题总数</div>
               </div>
             </div>
           </div>
@@ -105,155 +179,240 @@ export default function AgentProfilePage() {
           {/* 学习偏好 */}
           <div className="p-6 bg-surface border border-border rounded-xl">
             <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Target className="w-4 h-4 text-primary" />
-              学习偏好
+              <Target className="w-4 h-4 text-primary" /> 学习偏好
             </h3>
             <div className="space-y-3">
-              {preferences.map((pref, i) => (
-                <div key={i} className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">{pref.label}</span>
-                  <span className="text-sm font-medium text-foreground">{pref.value}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">学习方式</span>
+                <span className="text-foreground font-medium">{profile.learningStyle || '未设置'}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">偏好难度</span>
+                <span className="text-foreground font-medium">{profile.preferredDifficulty || '未设置'}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">偏好时段</span>
+                <span className="text-foreground font-medium">{timeSlotLabels[profile.preferred_time_slot] || profile.preferred_time_slot || '未设置'}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">每日目标</span>
+                <span className="text-foreground font-medium">{profile.dailyGoal} 分钟</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">正确率</span>
+                <span className="text-foreground font-medium">{(profile.problemAccuracy * 100).toFixed(0)}%</span>
+              </div>
+              {profile.lastActiveAt && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">最后活跃</span>
+                  <span className="text-foreground font-medium">{new Date(profile.lastActiveAt).toLocaleDateString('zh-CN')}</span>
                 </div>
-              ))}
+              )}
+            </div>
+          </div>
+
+          {/* 强弱项 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-green-500/5 border border-green-500/20 rounded-xl">
+              <h4 className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">擅长领域</h4>
+              <div className="flex flex-wrap gap-2">
+                {profile.focusAreas?.length ? profile.focusAreas.map((area, i) => (
+                  <span key={i} className="px-2 py-1 text-xs bg-green-500/10 text-green-700 dark:text-green-400 rounded">{area}</span>
+                )) : <span className="text-xs text-muted-foreground">暂无数据</span>}
+              </div>
+            </div>
+            <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-xl">
+              <h4 className="text-sm font-medium text-orange-700 dark:text-orange-400 mb-2">待加强</h4>
+              <div className="flex flex-wrap gap-2">
+                {profile.weakAreas?.length ? profile.weakAreas.map((area, i) => (
+                  <span key={i} className="px-2 py-1 text-xs bg-orange-500/10 text-orange-700 dark:text-orange-400 rounded">{area}</span>
+                )) : <span className="text-xs text-muted-foreground">暂无数据</span>}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 右侧：知识掌握度 */}
+        {/* 右侧：图表和数据 */}
         <div className="lg:col-span-2 space-y-6">
-          {/* 知识领域掌握度 */}
+          {/* 知识图谱（动态） */}
           <div className="p-6 bg-surface border border-border rounded-xl">
             <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              知识领域掌握度
+              <Network className="w-4 h-4 text-primary" /> 知识掌握图谱
             </h3>
-            <div className="space-y-4">
-              {knowledgeAreas.map((area, i) => {
-                const Icon = area.icon;
-                return (
-                  <div key={i}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm font-medium text-foreground">{area.name}</span>
+            {topSkills.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {topSkills.map((ks, i) => (
+                  <div key={i} className="p-3 bg-surface-container rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-foreground truncate">{ks.skill_name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded text-white ${masteryColor(ks.mastery)}`}>
+                        {masteryText(ks.mastery)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-surface-container-lowest rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${masteryColor(ks.mastery)}`} style={{ width: `${ks.mastery * 100}%` }} />
                       </div>
-                      <span className="text-sm text-muted-foreground">{area.level}%</span>
+                      <span className="text-[11px] text-muted-foreground w-8 text-right">{Math.round(ks.mastery * 100)}%</span>
                     </div>
-                    <div className="h-2 bg-surface-container rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full ${area.color} rounded-full transition-all`}
-                        style={{ width: `${area.level}%` }}
-                      />
-                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-1">{ks.attempts} 次练习 · {ks.correct_count} 次正确</div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 知识图谱可视化 */}
-          <div className="p-6 bg-surface border border-border rounded-xl">
-            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Network className="w-4 h-4 text-primary" />
-              知识图谱
-            </h3>
-            <div className="relative h-64 bg-surface-container rounded-xl overflow-hidden">
-              {/* 知识节点 */}
-              <svg className="absolute inset-0 w-full h-full">
-                {/* 连接线 */}
-                <line x1="50%" y1="30%" x2="30%" y2="50%" stroke="currentColor" strokeWidth="1" className="text-border" />
-                <line x1="50%" y1="30%" x2="70%" y2="50%" stroke="currentColor" strokeWidth="1" className="text-border" />
-                <line x1="30%" y1="50%" x2="20%" y2="75%" stroke="currentColor" strokeWidth="1" className="text-border" />
-                <line x1="30%" y1="50%" x2="40%" y2="75%" stroke="currentColor" strokeWidth="1" className="text-border" />
-                <line x1="70%" y1="50%" x2="60%" y2="75%" stroke="currentColor" strokeWidth="1" className="text-border" />
-                <line x1="70%" y1="50%" x2="80%" y2="75%" stroke="currentColor" strokeWidth="1" className="text-border" />
-              </svg>
-              {/* 节点 */}
-              <div className="absolute top-[25%] left-[45%] w-12 h-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold shadow-lg">
-                基础
-              </div>
-              <div className="absolute top-[45%] left-[25%] w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-medium shadow">
-                语法
-              </div>
-              <div className="absolute top-[45%] left-[65%] w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium shadow">
-                算法
-              </div>
-              <div className="absolute top-[70%] left-[15%] w-8 h-8 bg-green-400 rounded-full flex items-center justify-center text-white text-xs shadow">
-                变量
-              </div>
-              <div className="absolute top-[70%] left-[35%] w-8 h-8 bg-green-400 rounded-full flex items-center justify-center text-white text-xs shadow">
-                函数
-              </div>
-              <div className="absolute top-[70%] left-[55%] w-8 h-8 bg-blue-400 rounded-full flex items-center justify-center text-white text-xs shadow">
-                排序
-              </div>
-              <div className="absolute top-[70%] left-[75%] w-8 h-8 bg-blue-400 rounded-full flex items-center justify-center text-white text-xs shadow">
-                查找
-              </div>
-            </div>
-            <div className="mt-3 flex items-center justify-center gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-full"></span>已掌握</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-blue-500 rounded-full"></span>学习中</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-gray-300 rounded-full"></span>未开始</span>
-            </div>
-          </div>
-
-          {/* 知识图谱节点 */}
-          <div className="p-6 bg-surface border border-border rounded-xl">
-            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary" />
-              最近学习的知识点
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {recentTopics.map((topic, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 bg-surface-container rounded-lg">
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-foreground">{topic.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {topic.connections} 个关联 · 掌握度 {topic.mastery}%
-                    </div>
-                  </div>
-                  <div className="w-10 h-10 relative">
-                    <svg className="w-10 h-10 -rotate-90">
-                      <circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" strokeWidth="3" className="text-surface-container" />
-                      <circle 
-                        cx="20" cy="20" r="16" fill="none" stroke="currentColor" strokeWidth="3" 
-                        className="text-primary"
-                        strokeDasharray={`${topic.mastery} ${100 - topic.mastery}`}
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 强弱项分析 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-              <h4 className="text-sm font-medium text-green-800 mb-2">擅长领域</h4>
-              <div className="flex flex-wrap gap-2">
-                {profile.focusAreas.map((area, i) => (
-                  <span key={i} className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded">
-                    {area}
-                  </span>
                 ))}
               </div>
-            </div>
-            <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl">
-              <h4 className="text-sm font-medium text-orange-800 mb-2">待加强</h4>
-              <div className="flex flex-wrap gap-2">
-                {profile.weakAreas.map((area, i) => (
-                  <span key={i} className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded">
-                    {area}
-                  </span>
-                ))}
+            ) : (
+              <div className="text-sm text-muted-foreground text-center py-8">完成课程或算法练习后，知识图谱会自动填充</div>
+            )}
+          </div>
+
+          {/* 雷达图：按方向掌握度 */}
+          {dashboard && dashboard.radar.length > 0 && (
+            <div className="p-6 bg-surface border border-border rounded-xl">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" /> 方向掌握度雷达
+              </h3>
+              <div className="grid grid-cols-5 gap-3">
+                {(['python', 'cpp', 'database', 'algorithm', 'agent'] as const).map(cat => {
+                  const item = dashboard.radar.find(r => r.category === cat);
+                  const m = item?.mastery || 0;
+                  return (
+                    <div key={cat} className="text-center">
+                      <div className="relative w-16 h-16 mx-auto">
+                        <svg className="w-16 h-16 -rotate-90">
+                          <circle cx="32" cy="32" r="26" fill="none" stroke="currentColor" strokeWidth="4" className="text-surface-container" />
+                          <circle cx="32" cy="32" r="26" fill="none" stroke="currentColor" strokeWidth="4" className={masteryColor(m)} strokeDasharray={`${m * 163} 163`} strokeLinecap="round" />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">{Math.round(m * 100)}%</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">{categoryLabels[cat] || cat}</div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
+          )}
+
+          {/* 学习热力图（30 天） */}
+          {dashboard && dashboard.heatmap.length >= 0 && (
+            <div className="p-6 bg-surface border border-border rounded-xl">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-primary" /> 学习热力图（最近 30 天）
+              </h3>
+              <div className="flex flex-wrap gap-1">
+                {Array.from({ length: 30 }, (_, i) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - (29 - i));
+                  const dateStr = d.toISOString().slice(0, 10);
+                  const day = dashboard.heatmap.find(h => h.date === dateStr);
+                  const mins = day?.minutes || 0;
+                  const intensity = mins === 0 ? 0 : Math.min(4, Math.ceil(mins / 30));
+                  const colors = ['bg-surface-container', 'bg-primary/20', 'bg-primary/40', 'bg-primary/60', 'bg-primary/80'];
+                  return (
+                    <div key={i} className={`w-6 h-6 rounded ${colors[intensity]} border border-border/50`} title={`${dateStr}: ${mins} 分钟`} />
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+                <span>少</span>
+                {['bg-surface-container', 'bg-primary/20', 'bg-primary/40', 'bg-primary/60', 'bg-primary/80'].map((c, i) => (
+                  <div key={i} className={`w-4 h-4 rounded ${c} border border-border/50`} />
+                ))}
+                <span>多</span>
+              </div>
+            </div>
+          )}
+
+          {/* 7 天趋势 */}
+          {dashboard && dashboard.trend.length > 0 && (
+            <div className="p-6 bg-surface border border-border rounded-xl">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" /> 最近 7 天学习趋势
+              </h3>
+              <div className="flex items-end gap-2 h-32">
+                {dashboard.trend.map((t, i) => {
+                  const maxMins = Math.max(...dashboard.trend.map(d => d.minutes), 1);
+                  const h = Math.max(4, (t.minutes / maxMins) * 100);
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                      <div className="w-full bg-primary/60 rounded-t" style={{ height: `${h}%` }} title={`${t.date}: ${t.minutes}分钟`} />
+                      <span className="text-[10px] text-muted-foreground">{t.date.slice(5)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 统计汇总 */}
+          {dashboard && (
+            <div className="grid grid-cols-4 gap-4">
+              <div className="p-4 bg-surface border border-border rounded-xl text-center">
+                <div className="text-2xl font-bold text-foreground">{Math.floor(dashboard.stats.total_minutes / 60)}h</div>
+                <div className="text-xs text-muted-foreground">总时长</div>
+              </div>
+              <div className="p-4 bg-surface border border-border rounded-xl text-center">
+                <div className="text-2xl font-bold text-foreground">{dashboard.stats.total_sessions}</div>
+                <div className="text-xs text-muted-foreground">对话数</div>
+              </div>
+              <div className="p-4 bg-surface border border-border rounded-xl text-center">
+                <div className="text-2xl font-bold text-foreground">{dashboard.stats.total_problems}</div>
+                <div className="text-xs text-muted-foreground">解题数</div>
+              </div>
+              <div className="p-4 bg-surface border border-border rounded-xl text-center">
+                <div className="text-2xl font-bold text-foreground">{(dashboard.stats.avg_accuracy * 100).toFixed(0)}%</div>
+                <div className="text-xs text-muted-foreground">正确率</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* 编辑对话框 */}
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setEditing(false)}>
+          <div className="bg-background border border-border rounded-2xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-foreground">编辑学习画像</h2>
+              <button onClick={() => setEditing(false)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-foreground">学习方式</label>
+                <input value={editForm.learning_style} onChange={e => setEditForm({ ...editForm, learning_style: e.target.value })} placeholder="如：实践型、理论型" className="w-full mt-1 px-3 py-2 bg-surface-container border-none rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary/30 focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">偏好难度</label>
+                <input value={editForm.preferred_difficulty} onChange={e => setEditForm({ ...editForm, preferred_difficulty: e.target.value })} placeholder="如：简单、中等、困难" className="w-full mt-1 px-3 py-2 bg-surface-container border-none rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary/30 focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">偏好时段</label>
+                <select value={editForm.preferred_time_slot} onChange={e => setEditForm({ ...editForm, preferred_time_slot: e.target.value })} className="w-full mt-1 px-3 py-2 bg-surface-container border-none rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary/30 focus:outline-none">
+                  <option value="">未设置</option>
+                  <option value="morning">上午</option>
+                  <option value="afternoon">下午</option>
+                  <option value="evening">晚间</option>
+                  <option value="night">深夜</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">每日目标（分钟）</label>
+                <input type="number" value={editForm.daily_goal} onChange={e => setEditForm({ ...editForm, daily_goal: parseInt(e.target.value) || 30 })} className="w-full mt-1 px-3 py-2 bg-surface-container border-none rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary/30 focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">擅长领域（逗号分隔）</label>
+                <input value={editForm.focus_areas} onChange={e => setEditForm({ ...editForm, focus_areas: e.target.value })} placeholder="如：Python, 数据结构" className="w-full mt-1 px-3 py-2 bg-surface-container border-none rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary/30 focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">待加强（逗号分隔）</label>
+                <input value={editForm.weak_areas} onChange={e => setEditForm({ ...editForm, weak_areas: e.target.value })} placeholder="如：并发编程, 系统设计" className="w-full mt-1 px-3 py-2 bg-surface-container border-none rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary/30 focus:outline-none" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setEditing(false)} className="flex-1 px-4 py-2 bg-surface-container text-foreground rounded-xl hover:opacity-80 text-sm font-medium">取消</button>
+              <button onClick={saveEdit} className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:opacity-90 text-sm font-medium">保存</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

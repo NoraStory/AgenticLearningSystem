@@ -54,6 +54,7 @@ func (s *Server) recordTime(c *gin.Context) {
 	}
 	var total int64
 	s.services.DB.Model(&model.DailyStudyTime{}).Where("user_id = ?", userID(c)).Select("COALESCE(SUM(duration_minutes),0)").Scan(&total)
+	s.updateProfileFromActivity(userID(c))
 	success(c, gin.H{"total_minutes": total})
 }
 func (s *Server) learningPaths(c *gin.Context) {

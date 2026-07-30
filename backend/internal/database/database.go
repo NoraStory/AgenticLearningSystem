@@ -56,6 +56,6 @@ func migrate(db *gorm.DB) error {
 		&model.User{}, &model.RefreshToken{}, &model.Course{}, &model.Comment{}, &model.CourseLike{}, &model.Favorite{}, &model.Note{},
 		&model.Problem{}, &model.Submission{}, &model.LearningProgress{}, &model.DailyStudyTime{}, &model.LearningPath{}, &model.LearningPathStage{},
 		&model.ResumeTemplate{}, &model.Resume{}, &model.Project{}, &model.ProjectTask{}, &model.InterviewExam{}, &model.SessionMessage{},
-		&model.UserToolSetting{}, &model.UserProfile{}, &model.UserKnowledgeGraph{}, &model.WorkflowExecution{}, &model.UserActivity{}, &model.Achievement{}, &model.UserAchievement{},
+		&model.UserToolSetting{}, &model.UserProfile{}, &model.UserKnowledgeGraph{}, &model.WorkflowExecution{}, &model.UserActivity{}, &model.Achievement{}, &model.UserAchievement{}, &model.KnowledgeState{},
 	)
 }

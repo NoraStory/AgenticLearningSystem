@@ -932,3 +932,108 @@ POST /api/v1/projects/analyze
 ### 11.5 对话记忆说明
 
 后端 `loadConversationMemory(uid, sessionID)` 从 `session_messages` 读取最近 12 条作为工作记忆，`buildConversationPrompt` 把记忆拼入模型提示，`contextualToolMessage` 在追问时把最近 4 轮记忆注入工具调用，确保指代（“这个/它/上面”）能被正确解析。记忆完全基于持久化数据，重启或刷新后仍可恢复。
+
+## 12. 用户画像接口
+
+### 12.1 获取用户画像
+
+`GET /api/v1/agent/profile`
+
+返回当前用户的完整画像，包含动态计算的等级、学习统计和偏好设置。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| level | string | 等级标题（如"中级开发者"） |
+| computed_level | int | 数值等级 1-10 |
+| level_title | string | 等级描述 |
+| focus_areas | string[] | 擅长领域 |
+| weak_areas | string[] | 待加强领域 |
+| learning_style | string | 学习风格 |
+| preferred_difficulty | string | 偏好难度 |
+| preferred_time_slot | string | 偏好时段（morning/afternoon/evening/night） |
+| daily_goal | int | 每日目标（分钟） |
+| total_study_time | int | 总学习时长（小时） |
+| streak | int | 连续打卡天数 |
+| session_count | int | AI 对话总次数 |
+| problem_solved_count | int | 解题总数 |
+| problem_accuracy | float | 平均正确率 0-1 |
+| last_active_at | string | 最后活跃时间 |
+
+### 12.2 编辑用户画像
+
+`PUT /api/v1/agent/profile`
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| learning_style | string | 否 | 学习风格 |
+| preferred_difficulty | string | 否 | 偏好难度 |
+| preferred_time_slot | string | 否 | 偏好时段 |
+| daily_goal | int | 否 | 每日目标（分钟） |
+| focus_areas | string[] | 否 | 擅长领域 |
+| weak_areas | string[] | 否 | 待加强领域 |
+
+### 12.3 知识掌握状态
+
+`GET /api/v1/agent/knowledge-states?category=python`
+
+返回用户各知识点的 BKT 掌握状态。可选 `category` 参数筛选。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| skill_name | string | 知识点名称 |
+| category | string | 分类 |
+| mastery | float | 掌握概率 0-1（BKT 后验） |
+| attempts | int | 练习次数 |
+| correct_count | int | 正确次数 |
+| last_practiced_at | string | 最后练习时间 |
+
+### 12.4 学习仪表盘
+
+`GET /api/v1/agent/dashboard`
+
+返回聚合的学习数据，用于仪表盘可视化。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| heatmap | array | 30天每日学习热力图 {date, minutes, sessions} |
+| radar | array | 5大方向掌握度 {category, mastery} |
+| trend | array | 7天学习趋势 {date, minutes} |
+| stats | object | 统计汇总 {total_minutes, total_sessions, total_problems, avg_accuracy} |
+
+## 13. 知识追踪机制
+
+### BKT（贝叶斯知识追踪）
+
+每次提交题目后，系统用 BKT 算法更新对应知识点的掌握概率：
+
+- **P(L0)** = 0.1（先验掌握概率）
+- **P(T)** = 0.3（每次练习后学会的概率）
+- **P(G)** = 0.25（猜对概率）
+- **P(S)** = 0.1（失误概率）
+
+更新规则：
+- 做对 → P(L|correct) = P(L)*(1-P(S)) / (P(L)*(1-P(S)) + (1-P(L))*P(G))
+- 做错 → P(L|wrong) = P(L)*P(S) / (P(L)*P(S) + (1-P(L))*(1-P(G)))
+- 练习后 → P(L)' = P(L|result) + (1-P(L|result)) * P(T)
+
+### 等级自动计算
+
+```
+score = 总学习时长/10 + 完成课程数*3 + 解题数 + 连续天数/2
+
+Lv 1   新手开发者    score < 10
+Lv 3   入门开发者    score < 30
+Lv 5   初级开发者    score < 80
+Lv 7   中级开发者    score < 200
+Lv 9   高级开发者    score < 500
+Lv 10  专家开发者    score >= 500
+```
+
+### 行为反馈闭环
+
+| 用户行为 | 更新内容 |
+|----------|----------|
+| 记录学习时长 | TotalStudyTime + Streak + LastActiveAt |
+| 完成课程 | FocusAreas + KnowledgeState |
+| 提交题目 | BKT 更新 KnowledgeState.Mastery |
+| Agent 对话 | SessionCount + TotalStudyTime + Streak |

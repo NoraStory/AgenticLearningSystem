@@ -262,6 +262,11 @@ type UserProfile struct {
 	DailyGoal           int
 	TotalStudyTime      int
 	Streak              int
+	PreferredTimeSlot   string
+	SessionCount        int
+	ProblemSolvedCount  int
+	ProblemAccuracy     float64
+	LastActiveAt        time.Time
 	UpdatedAt           time.Time
 	CreatedAt           time.Time
 }
@@ -283,6 +288,18 @@ type UserKnowledgeGraph struct {
 	UpdatedAt    time.Time
 	CreatedAt    time.Time
 }
+type KnowledgeState struct {
+	ID              string    `gorm:"type:uuid;primaryKey" json:"id"`
+	UserID          string    `gorm:"type:uuid;uniqueIndex:idx_kstate" json:"user_id"`
+	SkillName       string    `gorm:"size:120;uniqueIndex:idx_kstate" json:"skill_name"`
+	Category        string    `json:"category"`
+	Mastery         float64   `json:"mastery"`
+	Attempts        int       `json:"attempts"`
+	CorrectCount   int       `json:"correct_count"`
+	LastPracticedAt time.Time `json:"last_practiced_at"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
 type WorkflowExecution struct {
 	ID          string `gorm:"type:uuid;primaryKey" json:"workflow_id"`
 	UserID      string `gorm:"type:uuid;index"`
@@ -298,6 +315,9 @@ type UserActivity struct {
 	UserID    string    `gorm:"type:uuid;index"`
 	Type      string    `json:"type"`
 	Text      string    `json:"text"`
+	Verb      string    `json:"verb,omitempty"`
+	Object    string    `json:"object,omitempty"`
+	Metadata  string    `gorm:"type:jsonb" json:"metadata,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 type Achievement struct {
