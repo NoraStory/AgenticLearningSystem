@@ -882,3 +882,53 @@ POST /api/v1/projects/analyze
 | LangGraph | 官方 | https://langchain-ai.github.io/langgraph/ |
 | OpenAI API | 官方 | https://platform.openai.com/docs |
 | Hugging Face | 模型库 | https://huggingface.co/ |
+
+## 11. AI Agent 接口
+
+### 11.1 智能对话（SSE 流式）
+
+`POST /api/v1/agent/chat`
+
+请求体：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| message | string | 是 | 用户消息（仅附件时可省略） |
+| session_id | string | 否 | 会话 ID，留空时后端自动生成；同一会话会被用于加载对话记忆 |
+| agent_type | string | 否 | 指定 Agent，留空时智能路由 |
+| collaboration_mode | string | 否 | 协作模式，默认 dynamic |
+| attachments | string[] | 否 | 已上传的附件 URL |
+| context | object | 否 | 页面上下文 |
+
+响应：`text/event-stream`，事件包括 `agent_route`、`workflow_start`、`workflow_step`、`tool_call`、`tool_result`、`token`、`done`。每个 turn 的用户消息与助手回答都会持久化到 `session_messages`，作为对话记忆的唯一来源。
+
+### 11.2 会话列表（对话历史）
+
+`GET /api/v1/agent/sessions`
+
+返回当前用户的全部会话，按最近活跃倒序。无需单独维护会话表——直接从 `session_messages` 按 `session_id` 聚合：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| session_id | string | 会话 ID |
+| title | string | 会话标题（取第一条用户消息，截断 60 字） |
+| agent | string | 最近一次使用的 Agent |
+| message_count | int | 消息总数 |
+| created_at | string | 会话创建时间 |
+| updated_at | string | 会话最近更新时间 |
+
+### 11.3 会话消息历史
+
+`GET /api/v1/agent/history?session_id=xxx`
+
+返回指定会话的全部消息（按时间正序，上限 200 条）。
+
+### 11.4 删除会话
+
+`DELETE /api/v1/agent/sessions/:id`
+
+删除指定会话下的全部消息。返回 `{ deleted: true, session_id, deleted_count }`。
+
+### 11.5 对话记忆说明
+
+后端 `loadConversationMemory(uid, sessionID)` 从 `session_messages` 读取最近 12 条作为工作记忆，`buildConversationPrompt` 把记忆拼入模型提示，`contextualToolMessage` 在追问时把最近 4 轮记忆注入工具调用，确保指代（“这个/它/上面”）能被正确解析。记忆完全基于持久化数据，重启或刷新后仍可恢复。

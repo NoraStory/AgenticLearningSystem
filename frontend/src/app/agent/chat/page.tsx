@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Code, BookOpen, MessageSquare, Loader2, Paperclip, Image, X, File, GitBranch } from 'lucide-react';
-import { useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Send, Bot, User, Sparkles, Code, BookOpen, MessageSquare, Loader2, Paperclip, Image, X, File, GitBranch, Plus, MessageCircle, Trash2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
 // Agent 类型
@@ -32,6 +31,16 @@ type ChatMessage = {
   content: string;
   workflow: WorkflowStep[] | null;
   artifacts?: string[];
+};
+
+// 历史会话摘要
+type SessionSummary = {
+  session_id: string;
+  title: string;
+  agent: string;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
 };
 
 // 初始消息
@@ -106,6 +115,19 @@ function MermaidPreview({ source }: { source: string }) {
   );
 }
 
+function formatRelativeTime(iso: string): string {
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return '';
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const sameDay = date.toDateString() === now.toDateString();
+  if (sameDay) return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return '昨天';
+  return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+}
+
 export default function AgentChatPage() {
   const agentApiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
   const [messages, setMessages] = useState<ChatMessage[]>(mockMessages);
@@ -115,8 +137,81 @@ export default function AgentChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [attachments, setAttachments] = useState<Array<{ name: string; type: string; preview?: string; file: globalThis.File }>>([]);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // 把后端返回的历史消息还原成前端可渲染的结构
+  const restoreMessages = (items: Array<{ role: string; agent: string; content: string; workflow?: unknown }>): ChatMessage[] =>
+    items
+      .filter((item) => item.role === 'user' || item.role === 'assistant')
+      .map((item) => {
+        const workflow = Array.isArray(item.workflow) ? (item.workflow as WorkflowStep[]) : null;
+        const artifacts = workflow?.flatMap((step) => extractMermaidBlocks(step.result || '')) || [];
+        return {
+          role: item.role as ChatMessage['role'],
+          agent: item.agent || 'learning',
+          content: item.content || '',
+          workflow,
+          artifacts,
+        };
+      });
+
+  // 拉取当前用户的全部历史会话（按最近活跃倒序）
+  const loadSessions = () => {
+    setLoadingSessions(true);
+    apiFetch<{ items: SessionSummary[] }>(`${agentApiBase}/api/v1/agent/sessions`)
+      .then((data) => setSessions(data.items || []))
+      .catch(() => undefined)
+      .finally(() => setLoadingSessions(false));
+  };
+
+  // 加载某个会话的完整消息历史
+  const loadHistory = (sid: string) => {
+    if (!sid) {
+      setMessages(mockMessages);
+      return;
+    }
+    apiFetch<{ items: Array<{ role: string; agent: string; content: string; workflow?: unknown }> }>(
+      `${agentApiBase}/api/v1/agent/history?session_id=${encodeURIComponent(sid)}`,
+    )
+      .then((data) => {
+        const restored = restoreMessages(data.items || []);
+        setMessages(restored.length ? restored : mockMessages);
+      })
+      .catch(() => setMessages(mockMessages));
+  };
+
+  // 开启新对话：生成全新会话 ID，清空消息，回到欢迎语
+  const startNewConversation = () => {
+    const sid = crypto.randomUUID();
+    localStorage.setItem('codeforge_agent_session_id', sid);
+    setSessionId(sid);
+    setMessages(mockMessages);
+    setAttachments([]);
+    setSelectedAgent(null);
+  };
+
+  // 切换到某条历史对话
+  const switchSession = (sid: string) => {
+    if (sid === sessionId) return;
+    localStorage.setItem('codeforge_agent_session_id', sid);
+    setSessionId(sid);
+    setAttachments([]);
+    loadHistory(sid);
+  };
+
+  // 删除历史对话
+  const deleteSession = (sid: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    apiFetch(`${agentApiBase}/api/v1/agent/sessions/${encodeURIComponent(sid)}`, { method: 'DELETE' })
+      .then(() => {
+        setSessions((prev) => prev.filter((item) => item.session_id !== sid));
+        if (sid === sessionId) startNewConversation();
+      })
+      .catch(() => undefined);
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -128,25 +223,9 @@ export default function AgentChatPage() {
     apiFetch<{ tools: Array<{ id: string; enabled: boolean }> }>(`${agentApiBase}/api/v1/agent/tools`).catch((error) => {
       setConnectionError(error instanceof Error ? error.message : 'Agent 服务不可用');
     });
-    apiFetch<{ items: Array<{ role: string; agent: string; content: string; workflow?: unknown }> }>(
-      `${agentApiBase}/api/v1/agent/history?session_id=${encodeURIComponent(existingSessionId)}`,
-    ).then((data) => {
-      if (!data.items.length) return;
-      const restored: ChatMessage[] = data.items
-        .filter((item) => item.role === 'user' || item.role === 'assistant')
-        .map((item) => {
-          const workflow = Array.isArray(item.workflow) ? item.workflow as WorkflowStep[] : null;
-          const artifacts = workflow?.flatMap((step) => extractMermaidBlocks(step.result || '')) || [];
-          return {
-            role: item.role as ChatMessage['role'],
-            agent: item.agent || 'learning',
-            content: item.content || '',
-            workflow,
-            artifacts,
-          };
-        });
-      if (restored.length) setMessages(restored);
-    }).catch(() => undefined);
+    loadSessions();
+    loadHistory(existingSessionId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentApiBase]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,6 +295,8 @@ export default function AgentChatPage() {
           if (event === 'done' && data.session_id) {
             setSessionId(data.session_id);
             localStorage.setItem('codeforge_agent_session_id', data.session_id);
+            // 回答完成后刷新历史会话列表，让新对话立刻出现在侧栏
+            loadSessions();
           }
           if (event === 'tool_result' && data.result) {
             const diagrams = extractMermaidBlocks(data.result);
@@ -243,49 +324,97 @@ export default function AgentChatPage() {
 
   return (
     <div className="flex h-[calc(100vh-8rem)]">
-      {/* 左侧 Agent 选择 */}
-      <div className="w-64 border-r border-border bg-surface-container-lowest p-4">
-        <h3 className="text-sm font-semibold text-foreground mb-3">选择 Agent</h3>
-        <div className="space-y-2">
-          {agents.map(agent => {
-            const Icon = agent.icon;
-            return (
-              <button
-                key={agent.id}
-                onClick={() => setSelectedAgent(agent.id === selectedAgent ? null : agent.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all ${
-                  selectedAgent === agent.id
-                    ? 'bg-primary/10 border border-primary/30'
-                    : 'hover:bg-surface-container'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-lg ${agent.color} flex items-center justify-center`}>
-                  <Icon className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground">{agent.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{agent.desc}</div>
-                </div>
-              </button>
-            );
-          })}
+      {/* 左侧侧栏：新对话 + 对话历史 + Agent 选择 */}
+      <div className="w-72 border-r border-border bg-surface-container-lowest flex flex-col">
+        {/* 新对话按钮 */}
+        <div className="p-3 border-b border-border">
+          <button
+            onClick={startNewConversation}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-opacity text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            新对话
+          </button>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-border">
-          <h4 className="text-xs font-medium text-muted-foreground mb-2">协作模式</h4>
-          <div className="space-y-1.5">
-            <button className="w-full text-left px-3 py-1.5 text-sm rounded hover:bg-surface-container text-foreground">
-              串行接力
-            </button>
-            <button className="w-full text-left px-3 py-1.5 text-sm rounded hover:bg-surface-container text-foreground">
-              并行合并
-            </button>
-            <button className="w-full text-left px-3 py-1.5 text-sm rounded hover:bg-surface-container text-foreground">
-              辩论模式
-            </button>
-            <button className="w-full text-left px-3 py-1.5 text-sm rounded hover:bg-surface-container text-foreground">
-              师徒模式
-            </button>
+        {/* 对话历史 */}
+        <div className="flex-1 overflow-y-auto px-2 py-2 min-h-0">
+          <div className="flex items-center justify-between px-1 py-1.5">
+            <h4 className="text-xs font-medium text-muted-foreground">对话历史</h4>
+            {loadingSessions && <Loader2 className="w-3 h-3 text-muted-foreground animate-spin" />}
+          </div>
+          <div className="space-y-0.5">
+            {sessions.length === 0 ? (
+              <div className="text-xs text-muted-foreground/60 px-2 py-4 text-center">
+                {loadingSessions ? '加载中…' : '暂无历史对话'}
+              </div>
+            ) : (
+              sessions.map((session) => (
+                <div
+                  key={session.session_id}
+                  onClick={() => switchSession(session.session_id)}
+                  className={`group flex items-start gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors ${
+                    session.session_id === sessionId ? 'bg-primary/10 border border-primary/30' : 'hover:bg-surface-container'
+                  }`}
+                >
+                  <MessageCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${session.session_id === sessionId ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-foreground truncate">{session.title || '新对话'}</div>
+                    <div className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
+                      <span>{session.message_count} 条</span>
+                      <span>·</span>
+                      <span>{formatRelativeTime(session.updated_at)}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => deleteSession(session.session_id, e)}
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity flex-shrink-0"
+                    title="删除对话"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Agent 选择 */}
+        <div className="p-3 border-t border-border max-h-[40%] overflow-y-auto">
+          <h3 className="text-sm font-semibold text-foreground mb-2">选择 Agent</h3>
+          <div className="space-y-1">
+            {agents.map(agent => {
+              const Icon = agent.icon;
+              return (
+                <button
+                  key={agent.id}
+                  onClick={() => setSelectedAgent(agent.id === selectedAgent ? null : agent.id)}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all ${
+                    selectedAgent === agent.id
+                      ? 'bg-primary/10 border border-primary/30'
+                      : 'hover:bg-surface-container'
+                  }`}
+                >
+                  <div className={`w-6 h-6 rounded-md ${agent.color} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-foreground truncate">{agent.name}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{agent.desc}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-border">
+            <h4 className="text-xs font-medium text-muted-foreground mb-2">协作模式</h4>
+            <div className="space-y-1">
+              <button className="w-full text-left px-2 py-1 text-xs rounded hover:bg-surface-container text-foreground">串行接力</button>
+              <button className="w-full text-left px-2 py-1 text-xs rounded hover:bg-surface-container text-foreground">并行合并</button>
+              <button className="w-full text-left px-2 py-1 text-xs rounded hover:bg-surface-container text-foreground">辩论模式</button>
+              <button className="w-full text-left px-2 py-1 text-xs rounded hover:bg-surface-container text-foreground">师徒模式</button>
+            </div>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"fmt"
@@ -14,9 +14,9 @@ const (
 	conversationPromptLimit = 12000
 )
 
-// loadConversationMemory is the durable working memory for an Agent session.
-// SessionMessage is already persisted for every turn, so a separate in-memory
-// cache would lose context after a restart or browser refresh.
+// loadConversationMemory 是 Agent 会话的持久化工作记忆。
+// 每个 turn 都已经写入 SessionMessage，所以不需要额外的内存缓存——
+// 重启或浏览器刷新后仍能恢复上下文。
 func (s *Server) loadConversationMemory(uid, sessionID string) []model.SessionMessage {
 	if strings.TrimSpace(sessionID) == "" {
 		return nil
@@ -87,6 +87,8 @@ func compactMemoryText(text string, max int) string {
 	return string([]rune(text)[:max]) + "…"
 }
 
+// contextualToolMessage 在判定为追问时，把最近几轮记忆拼进工具调用消息，
+// 让工具能够正确解析“这个/它/上面”这类指代。
 func contextualToolMessage(current string, history []model.SessionMessage) string {
 	if len(history) == 0 || !isContextualFollowUp(current) {
 		return current
@@ -96,14 +98,14 @@ func contextualToolMessage(current string, history []model.SessionMessage) strin
 		start = len(history) - 4
 	}
 	var b strings.Builder
-	b.WriteString("???????\n")
+	b.WriteString("对话记忆（用于理解当前问题的上下文）：\n")
 	for _, item := range history[start:] {
-		role := "??"
+		role := "助手"
 		if item.Role == "user" {
-			role = "??"
+			role = "用户"
 		}
-		fmt.Fprintf(&b, "%s?%s\n", role, compactMemoryText(item.Content, 1600))
+		fmt.Fprintf(&b, "%s：%s\n", role, compactMemoryText(item.Content, 1600))
 	}
-	fmt.Fprintf(&b, "?????%s", strings.TrimSpace(current))
+	fmt.Fprintf(&b, "当前用户消息：%s", strings.TrimSpace(current))
 	return b.String()
 }

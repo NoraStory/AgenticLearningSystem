@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"crypto/sha256"
@@ -76,6 +76,8 @@ func New(cfg config.Config, services *database.Services, store *storage.Store, l
 	api.GET("/notes", s.notes)
 	api.POST("/agent/chat", s.agentChat)
 	api.GET("/agent/history", s.agentHistory)
+	api.GET("/agent/sessions", s.agentSessions)
+	api.DELETE("/agent/sessions/:id", s.deleteAgentSession)
 	api.POST("/agent/chat/upload", s.agentUpload)
 	api.GET("/agent/tools", s.agentTools)
 	api.PATCH("/agent/tools/:id", s.patchAgentTool)
