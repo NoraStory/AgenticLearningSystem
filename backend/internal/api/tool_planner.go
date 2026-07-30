@@ -571,9 +571,9 @@ type searxResponse struct {
 // searchWeb selects the configured provider. SearXNG is the default because it
 // can run locally and expose a stable JSON endpoint without a vendor API key.
 func (s *Server) searchWeb(ctx context.Context, q string) (string, error) {
-	q = strings.TrimSpace(q)
+	q = extractSearchKeywords(q)
 	if q == "" {
-		return "\u6ca1\u6709\u641c\u7d22\u5173\u952e\u8bcd\u3002", nil
+		return "没有搜索关键词。", nil
 	}
 	provider := strings.ToLower(strings.TrimSpace(s.cfg.SearchProvider))
 	if provider == "" {
@@ -585,14 +585,15 @@ func (s *Server) searchWeb(ctx context.Context, q string) (string, error) {
 		if err == nil {
 			return result, nil
 		}
+		// SearXNG 失败后用 Wikipedia 回退（用独立 context，不受原超时影响）
 		if fallback, fallbackErr := wikiSearch(context.Background(), q); fallbackErr == nil {
 			return fallback, nil
 		}
-		return "", fmt.Errorf("SearXNG \u641c\u7d22\u5931\u8d25\uff1a%w", err)
+		return "", fmt.Errorf("SearXNG 搜索失败：%w", err)
 	case "duckduckgo":
 		return duckSearch(ctx, q)
 	default:
-		return "", fmt.Errorf("\u4e0d\u652f\u6301\u7684\u641c\u7d22\u63d0\u4f9b\u5546\uff1a%s", provider)
+		return "", fmt.Errorf("不支持的搜索提供商：%s", provider)
 	}
 }
 
@@ -613,8 +614,8 @@ func (s *Server) searxSearch(ctx context.Context, q string) (string, error) {
 	u.RawQuery = values.Encode()
 
 	timeout := s.cfg.SearchTimeoutSeconds
-	if timeout < 1 {
-		timeout = 8
+	if timeout < 1 || timeout < 15 {
+		timeout = 15
 	}
 	requestCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 	defer cancel()

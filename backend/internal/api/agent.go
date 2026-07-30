@@ -85,6 +85,7 @@ func (s *Server) agentChat(c *gin.Context) {
 	workflow := []gin.H{routeStep}
 	toolContexts := []string{}
 	imageDataURLs := []string{}
+	toolFailures := 0
 	for _, plan := range s.planAgentTools(uid, in, conversationHistory) {
 		stepID := "tool-" + plan.Meta.ID
 		running := gin.H{"id": stepID, "name": plan.Meta.Name, "status": "running", "tool": plan.Meta.ID, "reason": plan.Reason, "phase": plan.Phase, "depends_on": plan.DependsOn}
@@ -93,19 +94,25 @@ func (s *Server) agentChat(c *gin.Context) {
 		c.Writer.Flush()
 		toolInput := in
 		toolInput.Message = contextualToolMessage(in.Message, conversationHistory)
-		execution, toolErr := s.executeAgentTool(c.Request.Context(), uid, plan, toolInput)
+		execution, attempts, toolErr := s.executeWithRetry(c.Request.Context(), uid, plan, toolInput, maxToolRetries)
 		status := "completed"
 		result := execution.Context
 		if toolErr != nil {
 			status = "failed"
 			result = toolErr.Error()
+			toolFailures++
+			writeSSE(c, "tool_failure", gin.H{"tool": plan.Meta.ID, "attempts": attempts, "max_retries": maxToolRetries, "error": toolErr.Error(), "total_failures": toolFailures})
 		} else if !execution.Available {
 			status = "unavailable"
 		}
-		toolContexts = append(toolContexts, result)
+		if toolErr != nil {
+			toolContexts = append(toolContexts, toolFailureContext(plan.Meta.Name, attempts, toolErr.Error()))
+		} else {
+			toolContexts = append(toolContexts, result)
+		}
 		imageDataURLs = append(imageDataURLs, execution.Images...)
-		writeSSE(c, "tool_result", gin.H{"tool": plan.Meta.ID, "status": status, "result": result, "available": execution.Available, "phase": plan.Phase})
-		completed := gin.H{"id": stepID, "name": plan.Meta.Name, "status": status, "tool": plan.Meta.ID, "result": result, "phase": plan.Phase, "depends_on": plan.DependsOn}
+		writeSSE(c, "tool_result", gin.H{"tool": plan.Meta.ID, "status": status, "result": result, "available": execution.Available, "phase": plan.Phase, "attempts": attempts})
+		completed := gin.H{"id": stepID, "name": plan.Meta.Name, "status": status, "tool": plan.Meta.ID, "result": result, "phase": plan.Phase, "depends_on": plan.DependsOn, "attempts": attempts}
 		writeSSE(c, "workflow_step", completed)
 		workflow = append(workflow, completed)
 		c.Writer.Flush()
@@ -123,9 +130,9 @@ func (s *Server) agentChat(c *gin.Context) {
 	answerRunning := gin.H{"id": "answer", "name": "生成回答", "status": "running", "agent": in.AgentType}
 	writeSSE(c, "workflow_step", answerRunning)
 	c.Writer.Flush()
-	systemPrompt := "你是 CodeForge Academy 的中文技术学习助手。要求：1) 必须使用对话记忆解析指代关系，联系上下文理解用户意图；2) 根据工具结果准确回答，先给出结论，再展开详细解释；3) 回答必须完整、充分，把用户的问题解释清楚——需要时给出背景概念、步骤、代码示例、对比和注意事项，不要敷衍或只给一句话；4) 如果涉及代码，给出可运行的示例并逐行解释关键点；5) 如果工具上下文包含 Mermaid 代码块，必须原样输出完整代码块，不要只用文字概述替代。"
+	systemPrompt := buildSystemPrompt(false)
 	if len(imageDataURLs) > 0 {
-		systemPrompt = "你是 CodeForge Academy 的视觉技术助手。仔细识别图片中的文字、界面、图表、代码和错误信息。先直接回答用户问题，再补充详细依据和解读——完整描述图片内容、指出关键信息、给出后续建议。如果图片是代码或报错，逐行分析并给出修复方案。不要只用一两句话敷衍。"
+		systemPrompt = buildSystemPrompt(true)
 	}
 	var answer strings.Builder
 	streamErr := s.llm.StreamChatWithImages(c.Request.Context(), systemPrompt, prompt, imageDataURLs, func(delta string) {

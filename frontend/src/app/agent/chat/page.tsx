@@ -23,6 +23,8 @@ type WorkflowStep = {
   tool?: string;
   reason?: string;
   result?: string;
+  attempts?: number;
+  failureInfo?: { attempts: number; maxRetries: number; error: string; totalFailures: number };
 };
 
 type ChatMessage = {
@@ -290,7 +292,7 @@ export default function AgentChatPage() {
           const event = block.split('\n').find((line) => line.startsWith('event:'))?.slice(6).trim();
           const dataLine = block.split('\n').find((line) => line.startsWith('data:'))?.slice(5).trim();
           if (!event || !dataLine) continue;
-          const data = JSON.parse(dataLine) as { id?: string; agent?: string; name?: string; status?: string; content?: string; tool?: string; reason?: string; result?: string; session_id?: string };
+          const data = JSON.parse(dataLine) as { id?: string; agent?: string; name?: string; status?: string; content?: string; tool?: string; reason?: string; result?: string; session_id?: string; attempts?: number; max_retries?: number; error?: string; total_failures?: number };
           if (event === 'agent_route') updateLast((item) => ({ ...item, agent: data.agent || item.agent }));
           if (event === 'done' && data.session_id) {
             setSessionId(data.session_id);
@@ -302,8 +304,9 @@ export default function AgentChatPage() {
             const diagrams = extractMermaidBlocks(data.result);
             if (diagrams.length) updateLast((item) => ({ ...item, artifacts: [...new Set([...(item.artifacts || []), ...diagrams])] }));
           }
+          if (event === 'tool_failure') updateLast((item) => ({ ...item, workflow: (item.workflow || []).map((step) => step.id === data.id ? { ...step, status: 'failed' as const, failureInfo: { attempts: data.attempts || 0, maxRetries: data.max_retries || 5, error: data.error || '', totalFailures: data.total_failures || 0 } } : step) }));
           if (event === 'workflow_step') updateLast((item) => {
-            const step: WorkflowStep = { id: data.id, name: data.name || '工作流步骤', status: data.status === 'completed' ? 'done' : data.status === 'failed' || data.status === 'unavailable' ? 'failed' : data.status === 'running' ? 'running' : 'pending', agent: data.agent, tool: data.tool, reason: data.reason, result: data.result };
+            const step: WorkflowStep = { id: data.id, attempts: data.attempts, name: data.name || '工作流步骤', status: data.status === 'completed' ? 'done' : data.status === 'failed' || data.status === 'unavailable' ? 'failed' : data.status === 'running' ? 'running' : 'pending', agent: data.agent, tool: data.tool, reason: data.reason, result: data.result };
             const current = item.workflow || [];
             const existingIndex = current.findIndex((value) => (step.id && value.id === step.id) || (!step.id && value.name === step.name));
             return { ...item, workflow: existingIndex >= 0 ? current.map((value, index) => index === existingIndex ? { ...value, ...step } : value) : [...current, step] };
@@ -485,6 +488,14 @@ export default function AgentChatPage() {
                               )}
                               {step.reason && <span className="w-full pl-8 text-xs text-muted-foreground">选择原因：{step.reason}</span>}
                               {step.result && <span className="w-full pl-8 text-xs text-muted-foreground">执行结果：{step.result}</span>}
+                              {step.failureInfo && (
+                                <div className="w-full pl-8 mt-1 rounded bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
+                                  <div className="font-medium">工具调用失败（已重试 {step.failureInfo.attempts}/{step.failureInfo.maxRetries} 次）</div>
+                                  <div className="text-[11px] opacity-80 mt-0.5">{step.failureInfo.error}</div>
+                                  {step.failureInfo.totalFailures > 1 && <div className="text-[11px] opacity-60 mt-0.5">本会话累计工具失败 {step.failureInfo.totalFailures} 次</div>}
+                                </div>
+                              )}
+                              {step.attempts && step.attempts > 1 && !step.failureInfo && <span className="w-full pl-8 text-[11px] text-muted-foreground">重试 {step.attempts} 次后成功</span>}
                             </div>
                           ))}
                         </div>
