@@ -1,4 +1,4 @@
-﻿# 笔试模拟模块改进计划
+# 笔试模拟模块改进计划
 
 > 基于市场调研（LeetCode Interview / Codility / HackerRank / CoderPad / AI Mock Interview 平台）+ CodeForge Academy 现状分析
 
@@ -206,3 +206,38 @@ POST /api/v1/interview/exams/:id/questions/:qid/run  # 修改：支持测试用�
 GET  /api/v1/interview/exams            # 已有：返回真实历史
 GET  /api/v1/interview/exams/:id       # 已有：考试详情
 ```
+
+---
+
+## 七、实施进度
+
+| 序号 | 任务 | 状态 | 文件 |
+|------|------|------|------|
+| 1 | LLM 出题（llmGenerateQuestions） | ✅ 完成 | `backend/internal/api/interview_v2.go`（新） |
+| 2 | AI 文字题评分（llmScoreTextAnswer） | ✅ 完成 | 同上 |
+| 3 | 代码题测试验证（ValidateWithCases） | ✅ 完成 | 同上 |
+| 4 | submitExamV2 逐题反馈 | ✅ 完成 | 同上 |
+| 5 | runExamQuestionV2 支持测试用例 | ✅ 完成 | 同上 |
+| 6 | generateExamV2 用 LLM 出题 | ✅ 完成 | 同上 |
+| 7 | generateExam/runExamQuestion/submitExam 委托 | ✅ 完成 | `backend/internal/api/apps.go` |
+| 8 | Monaco 编辑器替换 textarea | ✅ 完成 | `frontend/src/app/interview/page.tsx` |
+| 9 | 倒计时计时器（自动提交） | ✅ 完成 | 同上 |
+| 10 | 方向/难度/题数选择生效 | ✅ 完成 | 同上 |
+| 11 | 运行按钮对接 API | ✅ 完成 | 同上 |
+| 12 | 重置按钮恢复模板代码 | ✅ 完成 | 同上 |
+| 13 | 提示按钮调用 Agent | ✅ 完成 | 同上 |
+| 14 | 提交结果页（逐题反馈卡片） | ✅ 完成 | 同上 |
+| 15 | 笔试历史真实数据 | ✅ 完成 | 同上 |
+| 16 | 支持 Python/JS/C++/Rust 四种语言 | ✅ 完成 | 同上 |
+| 17 | 代码运行结果展示（逐条 ✓/✗） | ✅ 完成 | 同上 |
+| 18 | 题目导航（已答/未答标记） | ✅ 完成 | 同上 |
+
+### 新增文件
+
+- `backend/internal/api/interview_v2.go` — LLM 出题 + AI 评分 + 代码验证 + 逐题反馈
+- `frontend/documents/INTERVIEW_IMPROVEMENT_PLAN.md` — 本文档
+
+### 修改文件
+
+- `backend/internal/api/apps.go` — 三个函数委托到 V2，移除不再使用的 sandbox import
+- `frontend/src/app/interview/page.tsx` — 全面重写

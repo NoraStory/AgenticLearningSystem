@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"codeforge/backend/internal/model"
-	"codeforge/backend/internal/sandbox"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -295,37 +294,7 @@ func (s *Server) projectAnalyze(c *gin.Context) {
 }
 
 func (s *Server) generateExam(c *gin.Context) {
-	var in struct {
-		Direction     string `json:"direction"`
-		Difficulty    string `json:"difficulty"`
-		QuestionCount int    `json:"question_count"`
-	}
-	if c.ShouldBindJSON(&in) != nil {
-		fail(c, 400, 400, "生成参数无效")
-		return
-	}
-	if in.QuestionCount < 1 {
-		in.QuestionCount = 4
-	}
-	if in.QuestionCount > 10 {
-		in.QuestionCount = 10
-	}
-	if in.Direction == "" {
-		in.Direction = "全栈开发"
-	}
-	if in.Difficulty == "" {
-		in.Difficulty = "中等"
-	}
-	base := []model.InterviewQuestion{{ID: "q1", Type: "code", Category: "算法", Difficulty: in.Difficulty, Title: "两数之和", Description: "给定数组和目标值，返回两个元素的下标。", Constraints: []string{"时间复杂度优于 O(n²)"}, TimeLimit: 20, Score: 100, Example: &model.Example{Input: "[2,7,11,15], 9", Output: "[0,1]"}}, {ID: "q2", Type: "text", Category: "系统设计", Difficulty: in.Difficulty, Title: "设计高可用短链接系统", Description: "说明 API、数据模型、缓存、扩展和故障处理。", Constraints: []string{"支持高并发", "考虑数据一致性"}, TimeLimit: 30, Score: 100}, {ID: "q3", Type: "text", Category: "基础知识", Difficulty: in.Difficulty, Title: "解释事务隔离级别", Description: "说明常见隔离级别以及脏读、不可重复读、幻读。", Constraints: []string{"结合实际数据库"}, TimeLimit: 15, Score: 100}, {ID: "q4", Type: "code", Category: "数据结构", Difficulty: in.Difficulty, Title: "反转链表", Description: "反转单链表并返回新头节点。", Constraints: []string{"O(1) 额外空间"}, TimeLimit: 15, Score: 100}}
-	questions := make([]model.InterviewQuestion, 0, in.QuestionCount)
-	for i := 0; i < in.QuestionCount; i++ {
-		q := base[i%len(base)]
-		q.ID = fmt.Sprintf("q%d", i+1)
-		questions = append(questions, q)
-	}
-	exam := model.InterviewExam{ID: uuid.NewString(), UserID: userID(c), Direction: in.Direction, Difficulty: in.Difficulty, Questions: questions}
-	s.services.DB.Create(&exam)
-	success(c, gin.H{"exam_id": exam.ID, "questions": questionPayload(questions)})
+	s.generateExamV2(c)
 }
 func questionPayload(rows []model.InterviewQuestion) []gin.H {
 	out := make([]gin.H, 0, len(rows))
@@ -352,53 +321,10 @@ func (s *Server) examDetail(c *gin.Context) {
 	success(c, gin.H{"exam_id": e.ID, "direction": e.Direction, "difficulty": e.Difficulty, "questions": questionPayload(e.Questions), "score": e.Score})
 }
 func (s *Server) runExamQuestion(c *gin.Context) {
-	var in codeInput
-	if c.ShouldBindJSON(&in) != nil {
-		fail(c, 400, 400, "代码参数无效")
-		return
-	}
-	r, err := sandbox.Run(in.Language, in.Code)
-	if err != nil {
-		fail(c, 500, 1003, "沙箱执行失败")
-		return
-	}
-	success(c, gin.H{"status": r.Status, "test_results": []gin.H{}, "execution_time_ms": r.ExecutionTimeMS, "stdout": r.Stdout, "stderr": r.Stderr})
+	s.runExamQuestionV2(c)
 }
 func (s *Server) submitExam(c *gin.Context) {
-	var in struct {
-		Answers []struct {
-			QuestionID string `json:"question_id"`
-			Answer     string `json:"answer"`
-		} `json:"answers"`
-	}
-	if c.ShouldBindJSON(&in) != nil {
-		fail(c, 400, 400, "答案格式错误")
-		return
-	}
-	var e model.InterviewExam
-	if s.services.DB.Where("id = ? AND user_id = ?", c.Param("id"), userID(c)).First(&e).Error != nil {
-		fail(c, 404, 404, "笔试不存在")
-		return
-	}
-	feedback := []gin.H{}
-	total := 0
-	for _, a := range in.Answers {
-		score := 40
-		if len(strings.TrimSpace(a.Answer)) > 80 {
-			score = 75
-		}
-		if len(strings.TrimSpace(a.Answer)) > 250 {
-			score = 90
-		}
-		total += score
-		feedback = append(feedback, gin.H{"question_id": a.QuestionID, "score": score, "comment": map[bool]string{true: "回答结构完整，建议补充边界条件。", false: "回答偏短，请补充原理、示例与权衡。"}[score >= 75]})
-	}
-	final := 0
-	if len(in.Answers) > 0 {
-		final = total / len(in.Answers)
-	}
-	s.services.DB.Model(&e).Update("score", final)
-	success(c, gin.H{"score": final, "feedback": feedback})
+	s.submitExamV2(c)
 }
 func (s *Server) search(c *gin.Context) {
 	q := strings.TrimSpace(c.Query("q"))
