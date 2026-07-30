@@ -1,4 +1,4 @@
-﻿package api
+package api
 
 import (
 	"net/http"
@@ -42,7 +42,7 @@ func (s *Server) agentSessions(c *gin.Context) {
 		  MIN(created_at) AS created_at,
 		  MAX(created_at) AS updated_at
 		FROM session_messages
-		WHERE user_id = ? AND COALESCE(session_id, '') <> ''
+		WHERE user_id = ? AND session_id IS NOT NULL
 		GROUP BY session_id
 		ORDER BY MAX(created_at) DESC
 		LIMIT 100
