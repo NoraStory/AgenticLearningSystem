@@ -100,8 +100,8 @@ export default function ProfilePage() {
         stats: { hours: Math.round(me.stats.total_hours), courses: me.stats.completed_courses, problems: me.stats.solved_problems, streak: me.stats.current_streak },
         progress: { python: progress.python?.progress || 0, cpp: progress.cpp?.progress || 0, database: progress.database?.progress || 0, algorithm: progress.algorithm?.progress || 0, agent: progress.agent?.progress || 0 },
       });
-      setActivities(activityData.items.length ? activityData.items : fallbackActivities);
-      setAchievements(achievementData.items.length ? achievementData.items : fallbackAchievements);
+      setActivities(activityData.items);
+      setAchievements(achievementData.items);
       setFavorites(favoriteData.items);
       setNotes(noteData.items);
     }).catch(() => undefined);
@@ -183,6 +183,9 @@ export default function ProfilePage() {
           {/* 最近活动 */}
           <div className="bg-surface rounded-lg shadow-card p-5">
             <h3 className="text-sm font-semibold text-foreground mb-4">最近活动</h3>
+            {activities.length === 0 ? (
+              <p className="text-sm text-muted-foreground/60 py-2">还没有学习活动，去完成第一节课吧</p>
+            ) : (
             <div className="space-y-4">
               {activities.map((activity, idx) => (
                 <div key={idx} className="flex items-start gap-3">
@@ -196,6 +199,7 @@ export default function ProfilePage() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
 
@@ -207,6 +211,9 @@ export default function ProfilePage() {
               <h3 className="text-sm font-semibold text-foreground mb-4">
                 成就徽章
               </h3>
+              {achievements.length === 0 ? (
+                <p className="text-sm text-muted-foreground/60 py-2">暂无成就</p>
+              ) : (
               <div className="grid grid-cols-3 gap-3">
                 {achievements.map((badge) => (
                   <div
@@ -225,6 +232,7 @@ export default function ProfilePage() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
 
             {/* 收藏课程 */}
@@ -232,6 +240,9 @@ export default function ProfilePage() {
               <h3 className="text-sm font-semibold text-foreground mb-4">
                 收藏课程
               </h3>
+              {favorites.length === 0 ? (
+                <p className="text-sm text-muted-foreground/60 py-2">还没有收藏课程</p>
+              ) : (
               <div className="space-y-2">
                 {favorites.map((fav) => (
                   <Link
@@ -244,6 +255,7 @@ export default function ProfilePage() {
                   </Link>
                 ))}
               </div>
+              )}
             </div>
 
             {/* 我的笔记 */}
@@ -251,6 +263,9 @@ export default function ProfilePage() {
               <h3 className="text-sm font-semibold text-foreground mb-4">
                 我的笔记
               </h3>
+              {notes.length === 0 ? (
+                <p className="text-sm text-muted-foreground/60 py-2">还没有笔记</p>
+              ) : (
               <div className="space-y-2">
                 {notes.map((note) => (
                   <Link
@@ -267,6 +282,7 @@ export default function ProfilePage() {
                   </Link>
                 ))}
               </div>
+              )}
             </div>
           </div>
         </div>

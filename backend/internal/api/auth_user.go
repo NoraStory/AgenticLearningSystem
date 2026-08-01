@@ -92,7 +92,30 @@ func (s *Server) me(c *gin.Context) {
 	var completed, solved int64
 	s.services.DB.Model(&model.LearningProgress{}).Where("user_id = ? AND progress >= 100", u.ID).Count(&completed)
 	s.services.DB.Model(&model.Submission{}).Where("user_id = ? AND status = ?", u.ID, "accepted").Distinct("problem_id").Count(&solved)
-	success(c, gin.H{"user_id": u.ID, "username": u.Username, "email": u.Email, "avatar": u.Avatar, "bio": u.Bio, "level": u.Level, "level_title": u.LevelTitle, "join_date": u.CreatedAt.Format("2006-01-02"), "learning_days": u.LearningDays, "stats": gin.H{"total_hours": float64(totalMinutes)/60 + 256, "completed_courses": completed + 1, "solved_problems": solved + 12, "current_streak": 15}})
+	// 连续打卡:统计最近一次学习中断至今的连续天数
+	streak := 0
+	var lastStudy time.Time
+	s.services.DB.Model(&model.DailyStudyTime{}).Where("user_id = ?", u.ID).Order("study_date desc").Limit(1).Pluck("study_date", &lastStudy)
+	if !lastStudy.IsZero() {
+		streak = countStreak(s.services.DB, u.ID, lastStudy)
+	}
+	success(c, gin.H{"user_id": u.ID, "username": u.Username, "email": u.Email, "avatar": u.Avatar, "bio": u.Bio, "level": u.Level, "level_title": u.LevelTitle, "join_date": u.CreatedAt.Format("2006-01-02"), "learning_days": u.LearningDays, "stats": gin.H{"total_hours": float64(totalMinutes) / 60, "completed_courses": completed, "solved_problems": solved, "current_streak": streak}})
+}
+
+// countStreak 从最后一次学习日期往前数连续天数。
+func countStreak(db *gorm.DB, uid string, from time.Time) int {
+	days := 0
+	cur := from
+	for {
+		var cnt int64
+		db.Model(&model.DailyStudyTime{}).Where("user_id = ? AND study_date = ?", uid, cur).Count(&cnt)
+		if cnt == 0 {
+			break
+		}
+		days++
+		cur = cur.AddDate(0, 0, -1)
+	}
+	return days
 }
 func (s *Server) updateMe(c *gin.Context) {
 	var in struct{ Username, Avatar, Bio string }
@@ -183,13 +206,17 @@ func (s *Server) streak(c *gin.Context) {
 	})
 }
 func (s *Server) progress(c *gin.Context) {
-	type row struct {
+	uid := userID(c)
+	// 各方向课程进度:按当前用户的学习进度计算
+	var rows []struct {
 		Category  string
 		Total     int
 		Completed int
 	}
-	var rows []row
-	s.services.DB.Model(&model.Course{}).Select("category, count(*) total, sum(case when status = 'completed' then 1 else 0 end) completed").Group("category").Scan(&rows)
+	s.services.DB.Model(&model.Course{}).
+		Select("courses.category, count(*) total, sum(case when lp.progress >= 100 then 1 else 0 end) completed").
+		Joins("LEFT JOIN learning_progresses lp ON lp.course_id = courses.id AND lp.user_id = ?", uid).
+		Group("courses.category").Scan(&rows)
 	data := gin.H{}
 	for _, r := range rows {
 		pct := 0
@@ -198,10 +225,23 @@ func (s *Server) progress(c *gin.Context) {
 		}
 		data[r.Category] = gin.H{"progress": pct, "completed_chapters": r.Completed, "total_chapters": r.Total, "completed_modules": r.Completed, "total_modules": r.Total}
 	}
-	var total, solved int64
+	// 算法题:按当前用户已提交且通过的题目统计
+	var total int64
+	var solved int64
 	s.services.DB.Model(&model.Problem{}).Count(&total)
-	s.services.DB.Model(&model.Problem{}).Where("status = ?", "solved").Count(&solved)
-	data["algorithm"] = gin.H{"progress": int(solved * 100 / max64(total, 1)), "solved_problems": solved, "total_problems": total, "by_difficulty": gin.H{"easy": gin.H{"solved": 2, "total": 3}, "medium": gin.H{"solved": 0, "total": 3}, "hard": gin.H{"solved": 0, "total": 2}}}
+	s.services.DB.Model(&model.Submission{}).Where("user_id = ? AND status = ?", uid, "accepted").Distinct("problem_id").Count(&solved)
+	// 按难度拆分已解决题目
+	var easySolved, mediumSolved, hardSolved int64
+	s.services.DB.Model(&model.Problem{}).
+		Joins("JOIN submissions s ON s.problem_id = problems.id AND s.user_id = ? AND s.status = 'accepted'", uid).
+		Where("problems.difficulty = ?", "简单").Distinct("problems.id").Count(&easySolved)
+	s.services.DB.Model(&model.Problem{}).
+		Joins("JOIN submissions s ON s.problem_id = problems.id AND s.user_id = ? AND s.status = 'accepted'", uid).
+		Where("problems.difficulty = ?", "中等").Distinct("problems.id").Count(&mediumSolved)
+	s.services.DB.Model(&model.Problem{}).
+		Joins("JOIN submissions s ON s.problem_id = problems.id AND s.user_id = ? AND s.status = 'accepted'", uid).
+		Where("problems.difficulty = ?", "困难").Distinct("problems.id").Count(&hardSolved)
+	data["algorithm"] = gin.H{"progress": int(solved * 100 / max64(total, 1)), "solved_problems": int(solved), "total_problems": int(total), "by_difficulty": gin.H{"easy": gin.H{"solved": int(easySolved), "total": 0}, "medium": gin.H{"solved": int(mediumSolved), "total": 0}, "hard": gin.H{"solved": int(hardSolved), "total": 0}}}
 	success(c, data)
 }
 func max64(a, b int64) int64 {
@@ -238,7 +278,7 @@ func (s *Server) achievements(c *gin.Context) {
 	s.services.DB.Find(&defs)
 	var unlocked []model.UserAchievement
 	s.services.DB.Where("user_id = ?", userID(c)).Find(&unlocked)
-	set := map[string]bool{"first-course": true, "streak-7": true}
+	set := map[string]bool{}
 	for _, u := range unlocked {
 		set[u.AchievementID] = true
 	}
