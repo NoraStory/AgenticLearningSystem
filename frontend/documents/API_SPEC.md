@@ -630,11 +630,67 @@ GET /api/v1/resume/templates
       "description": "适合软件工程师、数据科学家等技术岗位",
       "sections": ["个人信息", "教育背景", "技能清单", "项目经历", "工作经历"],
       "style": "简洁专业，突出技术栈和项目经验",
+      "status": "ready",
       "preview_url": "/templates/tech-preview.png"
     }
   ]
 }
 ```
+
+> 内置模板（tech/product/design 等）无 docx 文件，优化导出走通用格式；**用户上传并注册的 DOCX 模板**（`status=ready`）导出时保留模板样式。
+
+### 10.1b 上传 DOCX 简历模板（自定义模板注册第一步）
+
+```
+POST /api/v1/resume/templates/upload
+Content-Type: multipart/form-data
+```
+
+**请求参数**：
+- `file`: DOCX 模板文件（≤15MB，仅支持 .docx）
+
+**响应示例**：
+
+```json
+{
+  "success": true,
+  "template_id": "tpl-uuid",
+  "name": "我的模板",
+  "sections": [
+    { "title": "基本信息", "items": ["姓名: 张三", "电话: 13800000000"] },
+    { "title": "技能清单", "items": ["编程语言: TypeScript、Python、Go"] }
+  ],
+  "parsed": { "paragraph_count": 9, "table_count": 0 }
+}
+```
+
+> 服务端解析模板结构（Python docxtpl），AI 识别章节（标题+条目）；无 LLM 时按 Heading 样式粗识别。模板此时为 `draft` 状态，需用户确认后才可注册。
+
+### 10.1c 确认并注册 DOCX 模板（自定义模板注册第二步）
+
+```
+POST /api/v1/resume/templates/:id/confirm
+```
+
+**请求体**：
+
+```json
+{
+  "name": "我的模板",
+  "sections": [
+    { "title": "基本信息", "items": ["姓名: 张三", "电话: 13800000000"] },
+    { "title": "技能清单", "items": ["编程语言: TypeScript、Python、Go"] }
+  ]
+}
+```
+
+**响应示例**：
+
+```json
+{ "success": true, "template_id": "tpl-uuid", "status": "ready" }
+```
+
+> 用户确认/修正章节后，服务端把 items 段落替换为 `{{ sections[i]['items'][j] }}` 占位符（docxtpl 语法），生成注册模板。章节条目必须与模板段落文本匹配才能注入。
 
 ### 10.2 上传简历
 
@@ -644,7 +700,7 @@ Content-Type: multipart/form-data
 ```
 
 **请求参数**：
-- `file`: 简历文件（PDF/DOC/DOCX）
+- `file`: 简历文件（PDF/DOCX/TXT；.doc 老格式不支持解析）
 
 **响应示例**：
 
@@ -677,19 +733,21 @@ POST /api/v1/resume/analyze
 {
   "success": true,
   "analysis": {
-    "overall_score": 85,
-    "dimensions": {
-      "content_completeness": 90,
-      "format_layout": 80,
-      "keyword_match": 85,
-      "professionalism": 88,
-      "expression_clarity": 82
-    },
-    "highlights": ["技术栈描述清晰", "项目经验量化"],
-    "suggestions": ["增加更多数据指标", "优化技能排序"]
+    "score": 78,
+    "atsScore": 74,
+    "keywordMatch": [
+      { "keyword": "React", "found": true },
+      { "keyword": "Docker", "found": false }
+    ],
+    "strengths": ["经历结构清晰"],
+    "weaknesses": ["部分成果缺少量化指标"],
+    "suggestions": ["使用 STAR 法则重写项目经历"],
+    "fallback": false
   }
 }
 ```
+
+> 由 LLM 真实分析（PDF 用 Go `ledongthuc/pdf` 提取文本、DOCX 用 Python docxtpl 解析）。LLM 不可用时返回空结构 + `fallback: true`（不再返回假数据）。
 
 ### 10.4 AI 优化简历
 
@@ -712,17 +770,19 @@ POST /api/v1/resume/optimize
 ```json
 {
   "success": true,
+  "fallback": false,
+  "dropped_count": 0,
   "optimized_content": {
     "sections": [
-      {
-        "title": "个人信息",
-        "content": "优化后的内容..."
-      }
+      { "title": "个人信息", "content": "" }
     ],
-    "template_used": "技术岗位模板"
+    "template_used": "template-001",
+    "text": "优化后的完整 markdown 文本..."
   }
 }
 ```
+
+> 优化采用 diff 式方案（Resume-Matcher 思路）：LLM 返回结构化修改点，服务端逐条校验应用。姓名/邮箱/电话/日期被锁定不可修改，命中锁定的条目静默丢弃并计入 `dropped_count`。LLM 不可用时 `fallback: true` 返回原文。
 
 ### 10.5 导出简历
 
@@ -735,11 +795,16 @@ POST /api/v1/resume/export
 ```json
 {
   "format": "pdf",
-  "content": { ... }
+  "template_id": "tpl-uuid",
+  "content": { "text": "优化后的 markdown 文本" }
 }
 ```
 
 **响应**：文件下载流
+
+> - `template_id` 指向 `status=ready` 的自定义模板时：docx 走 docxtpl 渲染（保留模板样式），pdf 经 Gotenberg（docker 服务，封装 LibreOffice）转换，同样保留模板样式。
+> - 无 ready 模板时回退通用格式（手写 docx / 文本版 PDF）。
+> - Gotenberg 不可用时 PDF 自动回退文本版。
 
 ---
 

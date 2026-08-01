@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createParser } from 'eventsource-parser';
 import { Send, Bot, User, Sparkles, Code, BookOpen, MessageSquare, Loader2, Paperclip, Image, X, File, GitBranch, Plus, MessageCircle, Trash2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import Markdown from '@/components/Markdown';
+import Mermaid from '@/components/Mermaid';
 
 // Agent 类型
 const agents = [
@@ -62,61 +65,6 @@ function extractMermaidBlocks(content: string): string[] {
   return blocks;
 }
 
-type MermaidNode = { id: string; label: string };
-type MermaidEdge = { from: string; to: string };
-
-function parseMermaidFlowchart(source: string): { nodes: MermaidNode[]; edges: MermaidEdge[] } {
-  const nodes = new Map<string, MermaidNode>();
-  const edges: MermaidEdge[] = [];
-  const nodePattern = /([A-Za-z0-9_-]+)\s*(?:\[([^\]]+)\]|\{([^}]+)\})/g;
-  const edgePattern = /([A-Za-z0-9_-]+)\s*-->(?:\|[^|]*\|)?\s*([A-Za-z0-9_-]+)/g;
-  let match: RegExpExecArray | null;
-  while ((match = nodePattern.exec(source)) !== null) nodes.set(match[1], { id: match[1], label: match[2] || match[3] });
-  while ((match = edgePattern.exec(source)) !== null) {
-    edges.push({ from: match[1], to: match[2] });
-    if (!nodes.has(match[1])) nodes.set(match[1], { id: match[1], label: match[1] });
-    if (!nodes.has(match[2])) nodes.set(match[2], { id: match[2], label: match[2] });
-  }
-  return { nodes: Array.from(nodes.values()), edges };
-}
-
-function MermaidPreview({ source }: { source: string }) {
-  if (!/^\s*(flowchart|graph)\s+/i.test(source)) {
-    return <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">{source}</pre>;
-  }
-  const { nodes, edges } = parseMermaidFlowchart(source);
-  if (!nodes.length) return <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">{source}</pre>;
-  const width = 560;
-  const nodeWidth = 440;
-  const nodeHeight = 48;
-  const gap = 36;
-  const height = Math.max(120, nodes.length * (nodeHeight + gap) + 24);
-  const index = new Map(nodes.map((node, i) => [node.id, i]));
-  const y = (id: string) => (index.get(id) ?? 0) * (nodeHeight + gap) + 12;
-  return (
-    <div className="mt-3 overflow-x-auto rounded-lg border border-border bg-background p-2">
-      <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[520px]" role="img" aria-label="Mermaid flowchart">
-        <defs>
-          <marker id="codeforge-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0 L0,6 L7,3 z" fill="currentColor" />
-          </marker>
-        </defs>
-        {edges.map((edge, i) => {
-          const fromY = y(edge.from) + nodeHeight;
-          const toY = y(edge.to);
-          return <line key={`${edge.from}-${edge.to}-${i}`} x1={width / 2} y1={fromY} x2={width / 2} y2={toY} stroke="currentColor" strokeWidth="2" markerEnd="url(#codeforge-arrow)" className="text-primary" />;
-        })}
-        {nodes.map((node) => (
-          <g key={node.id}>
-            <rect x={(width - nodeWidth) / 2} y={y(node.id)} width={nodeWidth} height={nodeHeight} rx="12" className="fill-primary/10 stroke-primary" strokeWidth="2" />
-            <text x={width / 2} y={y(node.id) + 29} textAnchor="middle" className="fill-foreground text-[14px]">{node.label}</text>
-          </g>
-        ))}
-      </svg>
-    </div>
-  );
-}
-
 function formatRelativeTime(iso: string): string {
   const date = new Date(iso);
   if (isNaN(date.getTime())) return '';
@@ -143,6 +91,21 @@ export default function AgentChatPage() {
   const [loadingSessions, setLoadingSessions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // 取消当前流式请求(发送新消息或切换会话时调用)
+  const abortStream = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setIsLoading(false);
+  };
+
+  // 流被中止时,给最后一条消息追加提示
+  const appendAbortedNotice = () => {
+    setMessages((current) => current.map((item, index) =>
+      index === current.length - 1 ? { ...item, content: item.content + '\n\n[已停止生成]' } : item,
+    ));
+  };
 
   // 把后端返回的历史消息还原成前端可渲染的结构
   const restoreMessages = (items: Array<{ role: string; agent: string; content: string; workflow?: unknown }>): ChatMessage[] =>
@@ -187,6 +150,7 @@ export default function AgentChatPage() {
 
   // 开启新对话：生成全新会话 ID，清空消息，回到欢迎语
   const startNewConversation = () => {
+    abortStream();
     const sid = crypto.randomUUID();
     localStorage.setItem('codeforge_agent_session_id', sid);
     setSessionId(sid);
@@ -198,6 +162,7 @@ export default function AgentChatPage() {
   // 切换到某条历史对话
   const switchSession = (sid: string) => {
     if (sid === sessionId) return;
+    abortStream();
     localStorage.setItem('codeforge_agent_session_id', sid);
     setSessionId(sid);
     setAttachments([]);
@@ -253,6 +218,8 @@ export default function AgentChatPage() {
   const handleSend = async () => {
     const message = input.trim();
     if ((!message && attachments.length === 0) || isLoading) return;
+    // 中止上一条未完成的流
+    abortStream();
     const activeSessionId = sessionId || crypto.randomUUID();
     if (!sessionId) {
       setSessionId(activeSessionId);
@@ -272,53 +239,60 @@ export default function AgentChatPage() {
         const upload = await apiFetch<{ file_urls: string[] }>(`${agentApiBase}/api/v1/agent/chat/upload`, { method: 'POST', body: form });
         uploaded = upload.file_urls;
       }
+      const controller = new AbortController();
+      abortRef.current = controller;
       const response = await fetch(`${agentApiBase}/api/v1/agent/chat`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({ session_id: activeSessionId, message: message || '请分析我上传的图片或附件。', agent_type: selectedAgent || undefined, attachments: uploaded, collaboration_mode: 'dynamic', context: { current_page: '/agent/chat' } }),
       });
       if (!response.ok || !response.body) throw new Error(`Agent 服务不可用（HTTP ${response.status}）`);
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
       const updateLast = (updater: (value: typeof assistantMsg) => typeof assistantMsg) => {
         setMessages((current) => current.map((item, index) => index === current.length - 1 ? updater(item as typeof assistantMsg) : item));
       };
-      while (true) {
-        const { value, done } = await reader.read();
-        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-        const blocks = buffer.split('\n\n');
-        buffer = blocks.pop() || '';
-        for (const block of blocks) {
-          const event = block.split('\n').find((line) => line.startsWith('event:'))?.slice(6).trim();
-          const dataLine = block.split('\n').find((line) => line.startsWith('data:'))?.slice(5).trim();
-          if (!event || !dataLine) continue;
-          const data = JSON.parse(dataLine) as { id?: string; agent?: string; name?: string; status?: string; content?: string; tool?: string; reason?: string; result?: string; session_id?: string; attempts?: number; max_retries?: number; error?: string; total_failures?: number };
-          if (event === 'agent_route') updateLast((item) => ({ ...item, agent: data.agent || item.agent }));
-          if (event === 'done' && data.session_id) {
+      // eventsource-parser 负责拆块与事件分发
+      const parser = createParser({
+        onEvent: (event) => {
+          const data = JSON.parse(event.data) as { id?: string; agent?: string; name?: string; status?: string; content?: string; tool?: string; reason?: string; result?: string; session_id?: string; attempts?: number; max_retries?: number; error?: string; total_failures?: number };
+          if (event.event === 'agent_route') updateLast((item) => ({ ...item, agent: data.agent || item.agent }));
+          if (event.event === 'done' && data.session_id) {
             setSessionId(data.session_id);
             localStorage.setItem('codeforge_agent_session_id', data.session_id);
-            // 回答完成后刷新历史会话列表，让新对话立刻出现在侧栏
             loadSessions();
           }
-          if (event === 'tool_result' && data.result) {
+          if (event.event === 'tool_result' && data.result) {
             const diagrams = extractMermaidBlocks(data.result);
             if (diagrams.length) updateLast((item) => ({ ...item, artifacts: [...new Set([...(item.artifacts || []), ...diagrams])] }));
           }
-          if (event === 'tool_failure') updateLast((item) => ({ ...item, workflow: (item.workflow || []).map((step) => step.id === data.id ? { ...step, status: 'failed' as const, failureInfo: { attempts: data.attempts || 0, maxRetries: data.max_retries || 5, error: data.error || '', totalFailures: data.total_failures || 0 } } : step) }));
-          if (event === 'workflow_step') updateLast((item) => {
+          if (event.event === 'tool_failure') updateLast((item) => ({ ...item, workflow: (item.workflow || []).map((step) => step.id === data.id ? { ...step, status: 'failed' as const, failureInfo: { attempts: data.attempts || 0, maxRetries: data.max_retries || 5, error: data.error || '', totalFailures: data.total_failures || 0 } } : step) }));
+          if (event.event === 'workflow_step') updateLast((item) => {
             const step: WorkflowStep = { id: data.id, attempts: data.attempts, name: data.name || '工作流步骤', status: data.status === 'completed' ? 'done' : data.status === 'failed' || data.status === 'unavailable' ? 'failed' : data.status === 'running' ? 'running' : 'pending', agent: data.agent, tool: data.tool, reason: data.reason, result: data.result };
             const current = item.workflow || [];
             const existingIndex = current.findIndex((value) => (step.id && value.id === step.id) || (!step.id && value.name === step.name));
             return { ...item, workflow: existingIndex >= 0 ? current.map((value, index) => index === existingIndex ? { ...value, ...step } : value) : [...current, step] };
           });
-          if (event === 'token') updateLast((item) => ({ ...item, content: item.content + String(data.content || '') }));
-        }
+          if (event.event === 'token') updateLast((item) => ({ ...item, content: item.content + String(data.content || '') }));
+        },
+      });
+      while (true) {
+        const { value, done } = await reader.read();
         if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        parser.feed(chunk);
       }
+      parser.feed(decoder.decode());
       setAttachments([]);
     } catch (error) {
-      setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, content: error instanceof Error ? error.message : '请求失败' } : item));
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        appendAbortedNotice();
+      } else {
+        setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, content: error instanceof Error ? error.message : '请求失败' } : item));
+      }
     } finally {
+      abortRef.current = null;
       setIsLoading(false);
     }
   };
@@ -446,10 +420,13 @@ export default function AgentChatPage() {
                   {msg.role === 'assistant' && agent && (
                     <div className="text-xs font-medium mb-1 opacity-70">{agent.name}</div>
                   )}
-                  <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                  {msg.role === 'assistant' ? (
+                    <Markdown>{msg.content}</Markdown>
+                  ) : (
+                    <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                  )}
 
-                  {/* 工作流步骤：每条 assistant 消息都展示自己的工作流，切走再回来不丢失 */}
-                  {showWorkflow && (
+                  {/* 工作流步骤：每条 assistant 消息都展示自己的工作流，切走再回来不丢失 */}                  {showWorkflow && (
                     <div className="mt-3">
                       <div className="bg-surface-container-lowest border border-border rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-3">
@@ -505,7 +482,7 @@ export default function AgentChatPage() {
 
                   {/* Mermaid 图表 */}
                   {msg.role === 'assistant' && [...(msg.artifacts || []), ...extractMermaidBlocks(msg.content)].filter((value, index, values) => values.indexOf(value) === index).map((diagram, index) => (
-                    <MermaidPreview key={`${i}-diagram-${index}`} source={diagram} />
+                    <Mermaid key={`${i}-diagram-${index}`} source={diagram} />
                   ))}
                 </div>
                 {msg.role === 'user' && (
