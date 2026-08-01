@@ -175,6 +175,10 @@ type ResumeTemplate struct {
 	Preview     string   `json:"preview"`
 	Sections    []string `gorm:"serializer:json;type:jsonb" json:"sections"`
 	Style       string   `json:"style"`
+	ObjectKey   string   `json:"-"`             // MinIO 中模板原文件 key
+	RegisteredPath string `json:"-"`            // 注册后(已注入占位符)模板本地路径
+	Status      string   `json:"status"`        // draft(已上传未确认)/ ready(确认注册完成)
+	OwnerID     string   `gorm:"index" json:"-"` // 上传者;空串 = 系统内置模板
 	CreatedAt   time.Time
 }
 type Resume struct {
