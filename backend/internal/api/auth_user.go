@@ -7,7 +7,6 @@ import (
 	"codeforge/backend/internal/model"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -30,8 +29,12 @@ func (s *Server) register(c *gin.Context) {
 		fail(c, 409, 409, "邮箱或用户名已存在")
 		return
 	}
-	hash, _ := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
-	u := model.User{ID: uuid.NewString(), Username: in.Username, Email: in.Email, PasswordHash: string(hash), Level: 1, LevelTitle: "初级学习者", LearningDays: 1}
+	hash, err := hashPassword(in.Password)
+	if err != nil {
+		fail(c, 500, 500, "密码加密失败")
+		return
+	}
+	u := model.User{ID: uuid.NewString(), Username: in.Username, Email: in.Email, PasswordHash: hash, Level: 1, LevelTitle: "初级学习者", LearningDays: 1}
 	if err := s.services.DB.Create(&u).Error; err != nil {
 		fail(c, 500, 500, "创建用户失败")
 		return
@@ -48,9 +51,15 @@ func (s *Server) login(c *gin.Context) {
 		return
 	}
 	var u model.User
-	if err := s.services.DB.Where("email = ?", in.Email).First(&u).Error; err != nil || bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(in.Password)) != nil {
+	if err := s.services.DB.Where("email = ?", in.Email).First(&u).Error; err != nil || !verifyPassword(u.PasswordHash, in.Password) {
 		fail(c, 401, 401, "邮箱或密码错误")
 		return
+	}
+	// 旧 bcrypt 哈希登录成功后自动升级为 Argon2id,渐进迁移
+	if !isArgon2Hash(u.PasswordHash) {
+		if upgraded, err := hashPassword(in.Password); err == nil {
+			s.services.DB.Model(&u).Update("password_hash", upgraded)
+		}
 	}
 	access, _ := s.signToken(u.ID, 24*time.Hour)
 	refresh, _ := s.signToken(u.ID, 30*24*time.Hour)
