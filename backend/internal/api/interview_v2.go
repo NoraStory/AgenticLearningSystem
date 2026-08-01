@@ -243,5 +243,6 @@ func (s *Server) submitExamV2(c *gin.Context) {
 		final = total / len(in.Answers)
 	}
 	s.services.DB.Model(&e).Update("score", final)
+	s.trackEvent(userID(c), "interview_submit", "完成了一次笔试", gin.H{"direction": e.Direction, "difficulty": e.Difficulty, "score": final})
 	success(c, gin.H{"score": final, "feedback": feedback})
 }

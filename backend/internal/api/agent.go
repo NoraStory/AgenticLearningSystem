@@ -96,9 +96,9 @@ func (s *Server) agentChat(c *gin.Context) {
 	writeSSE(c, "workflow_step", answerRunning)
 	c.Writer.Flush()
 	// 生成回答：优先走 eino 工具循环（模型自主决策工具调用），LLM 不可用时回退流式直答
-	systemPrompt := buildSystemPrompt(false)
+	systemPrompt := s.buildSystemPromptForUser(false, uid)
 	if len(imageDataURLs) > 0 {
-		systemPrompt = buildSystemPrompt(true)
+		systemPrompt = s.buildSystemPromptForUser(true, uid)
 	}
 	var answer strings.Builder
 	if s.llm.Enabled() {
@@ -274,7 +274,10 @@ func (s *Server) agentProfile(c *gin.Context) {
 		p = model.UserProfile{ID: uuid.NewString(), UserID: userID(c), Level: "初级开发者", FocusAreas: []string{}, WeakAreas: []string{}, LearningStyle: "实践型", PreferredDifficulty: "简单", DailyGoal: 30}
 		s.services.DB.Create(&p)
 	}
-	level, levelTitle := computeLevel(p.TotalStudyTime, 0, p.ProblemSolvedCount, p.Streak)
+	// 完成课程数按当前用户真实统计，与 me() 口径一致
+	var completedCourses int64
+	s.services.DB.Model(&model.LearningProgress{}).Where("user_id = ? AND progress >= 100", userID(c)).Count(&completedCourses)
+	level, levelTitle := computeLevel(p.TotalStudyTime, int(completedCourses), p.ProblemSolvedCount, p.Streak)
 	success(c, gin.H{"level": p.Level, "computed_level": level, "level_title": levelTitle, "focus_areas": p.FocusAreas, "focusAreas": p.FocusAreas, "weak_areas": p.WeakAreas, "weakAreas": p.WeakAreas, "learning_style": p.LearningStyle, "learningStyle": p.LearningStyle, "preferred_difficulty": p.PreferredDifficulty, "preferredDifficulty": p.PreferredDifficulty, "preferred_time_slot": p.PreferredTimeSlot, "daily_goal": p.DailyGoal, "dailyGoal": p.DailyGoal, "total_study_time": p.TotalStudyTime, "totalStudyTime": p.TotalStudyTime, "streak": p.Streak, "session_count": p.SessionCount, "problem_solved_count": p.ProblemSolvedCount, "problem_accuracy": p.ProblemAccuracy, "last_active_at": p.LastActiveAt})
 }
 func (s *Server) updateProfile(c *gin.Context) {
@@ -411,16 +414,7 @@ func (s *Server) agentDashboard(c *gin.Context) {
 	})
 }
 
-func (s *Server) agentKnowledge(c *gin.Context) {
-	var k model.UserKnowledgeGraph
-	if s.services.DB.Where("user_id = ?", userID(c)).First(&k).Error != nil {
-		k = model.UserKnowledgeGraph{ID: uuid.NewString(), UserID: userID(c), Areas: []model.KnowledgeArea{}, RecentTopics: []model.Topic{}}
-		s.services.DB.Create(&k)
-	}
-	success(c, gin.H{"areas": k.Areas, "recent_topics": k.RecentTopics, "recentTopics": k.RecentTopics})
-}
-func (s *Server) confirmWorkflow(c *gin.Context) {
-	var in struct {
+func (s *Server) confirmWorkflow(c *gin.Context) {	var in struct {
 		WorkflowID string `json:"workflow_id"`
 		NodeID     string `json:"node_id"`
 		Approved   bool   `json:"approved"`

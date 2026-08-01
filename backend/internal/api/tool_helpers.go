@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -60,6 +62,72 @@ func buildSystemPrompt(imageMode bool) string {
 		b.WriteString("\n\n")
 	}
 	fmt.Fprintf(&b, "当前时间：%s（Asia/Shanghai）。回答中涉及时间相关内容时请以此为准。", now)
+	return b.String()
+}
+
+// buildSystemPromptForUser 构建带用户画像的系统提示词：保留热加载基础内容与时间注入，
+// 追加当前用户的学习画像摘要（弱项/掌握度/学习时长），供模型个性化回答。
+func (s *Server) buildSystemPromptForUser(imageMode bool, uid string) string {
+	base := buildSystemPrompt(imageMode)
+	digest := s.profileDigest(uid)
+	if digest == "" {
+		return base
+	}
+	return base + "\n\n—— 当前用户学习画像 ——\n" + digest +
+		"\n（以上数据来自用户学习记录，具体以工具返回为准，不要编造数字）"
+}
+
+// profileDigest 汇总当前用户画像摘要：等级、累计学习、连续打卡、各方向掌握度、待加强 top3。
+// 无画像数据时返回空串（调用方不注入，保持旧行为）。
+func (s *Server) profileDigest(uid string) string {
+	var p model.UserProfile
+	if err := s.services.DB.Where("user_id = ?", uid).First(&p).Error; err != nil {
+		return ""
+	}
+	var states []model.KnowledgeState
+	s.services.DB.Where("user_id = ?", uid).Limit(200).Find(&states)
+	if len(states) == 0 && p.TotalStudyTime == 0 {
+		return ""
+	}
+	// 各方向平均掌握度
+	catMastery := map[string]float64{}
+	catCount := map[string]int{}
+	for _, st := range states {
+		catMastery[st.Category] += st.Mastery
+		catCount[st.Category]++
+	}
+	// 待加强 top3（掌握度升序，取有练习记录的）
+	type catAvg struct {
+		key     string
+		mastery float64
+	}
+	var weak []catAvg
+	for k, sum := range catMastery {
+		if catCount[k] == 0 {
+			continue
+		}
+		weak = append(weak, catAvg{k, sum / float64(catCount[k])})
+	}
+	sort.Slice(weak, func(i, j int) bool { return weak[i].mastery < weak[j].mastery })
+	if len(weak) > 3 {
+		weak = weak[:3]
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "等级：%s\n", p.Level)
+	fmt.Fprintf(&b, "累计学习：%d 小时 · 连续打卡：%d 天\n", p.TotalStudyTime, p.Streak)
+	if len(weak) > 0 {
+		parts := make([]string, 0, len(weak))
+		for _, w := range weak {
+			label := w.key
+			if v, ok := categoryLabelCN[w.key]; ok {
+				label = v
+			}
+			parts = append(parts, label+" "+strconv.Itoa(int(w.mastery*100))+"%")
+		}
+		b.WriteString("各方向掌握度：" + strings.Join(parts, " / ") + "\n")
+		b.WriteString("待加强：" + strings.Join(parts, "、"))
+	}
 	return b.String()
 }
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
+import { track } from '@/lib/track';
 import { Clock, Target, Trophy, Code, CheckCircle, XCircle, Lightbulb, Play, RotateCcw, Loader2, ChevronLeft } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 
@@ -111,6 +112,7 @@ export default function ExamPage() {
       setCurrentQuestion(0);
       setIsStarted(true);
       setTimeLeft((data.questions?.[0]?.timeLimit || 20) * 60);
+      track('interview_start', { direction, difficulty, question_count: data.questions?.length || qc });
     } catch { /* ignore */ } finally { setIsGenerating(false); }
   };
 

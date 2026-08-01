@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { Tracker } from '@/components/Tracker';
 
 export const metadata: Metadata = {
   title: 'CodeForge Academy | 技术学习平台',
@@ -19,6 +20,7 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body className="bg-background text-foreground font-sans antialiased">
         <Header />
+        <Tracker />
         <div className="flex" style={{ height: 'calc(100vh - 3.5rem)' }}>
           <Sidebar />
           <main className="flex-1 min-w-0 overflow-y-auto bg-background">

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Heart, Bookmark, Share2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api';
+import { track } from '@/lib/track';
 
 // 模拟课程数据
 const fallbackCourseData: Record<string, {
@@ -112,6 +113,7 @@ export default function CourseDetailPage() {
         tags: detail.tags as string[],
       });
       setComments(commentData.items);
+      track('course_view', { course_id: courseId, category: String(detail.category_label || detail.category) });
     }).catch(() => undefined);
   }, [courseId]);
 

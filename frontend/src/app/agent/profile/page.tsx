@@ -3,6 +3,12 @@
 import { Brain, Target, TrendingUp, Award, BookOpen, Code, Database, Sparkles, Network, Edit3, X, Flame, Clock, CheckCircle2 } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
+import KnowledgeGraph from '@/components/profile/KnowledgeGraph';
+import InsightsCards, { type Insights } from '@/components/profile/InsightsCards';
+import {
+  Bar, BarChart, CartesianGrid, PolarAngleAxis, PolarGrid, PolarRadiusAxis,
+  Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from 'recharts';
 
 type Profile = {
   level: string;
@@ -68,6 +74,7 @@ export default function AgentProfilePage() {
   const [editForm, setEditForm] = useState({ learning_style: '', preferred_difficulty: '', preferred_time_slot: '', daily_goal: 30, focus_areas: '', weak_areas: '' });
 
   const [loading, setLoading] = useState(true);
+  const [insights, setInsights] = useState<Insights | null>(null);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -75,7 +82,7 @@ export default function AgentProfilePage() {
       Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 
     let done = 0;
-    const onDone = () => { done++; if (done >= 3) setLoading(false); };
+    const onDone = () => { done++; if (done >= 4) setLoading(false); };
 
     withTimeout(apiFetch<Profile>('/api/v1/agent/profile'))
       .then(p => setProfile(p))
@@ -89,6 +96,11 @@ export default function AgentProfilePage() {
 
     withTimeout(apiFetch<Dashboard>('/api/v1/agent/dashboard'))
       .then(d => setDashboard(d))
+      .catch(() => undefined)
+      .finally(onDone);
+
+    withTimeout(apiFetch<Insights>('/api/v1/agent/insights'))
+      .then(i => setInsights(i))
       .catch(() => undefined)
       .finally(onDone);
   }, []);
@@ -268,34 +280,12 @@ export default function AgentProfilePage() {
 
         {/* 右侧：图表和数据 */}
         <div className="lg:col-span-2 space-y-6">
-          {/* 知识图谱（动态） */}
+          {/* 知识图谱（ECharts 关系图） */}
           <div className="p-6 bg-surface border border-border rounded-xl">
             <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
               <Network className="w-4 h-4 text-primary" /> 知识掌握图谱
             </h3>
-            {topSkills.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {topSkills.map((ks, i) => (
-                  <div key={i} className="p-3 bg-surface-container rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-foreground truncate">{ks.skill_name}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded text-white ${masteryColor(ks.mastery)}`}>
-                        {masteryText(ks.mastery)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-surface-container-lowest rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${masteryColor(ks.mastery)}`} style={{ width: `${ks.mastery * 100}%` }} />
-                      </div>
-                      <span className="text-[11px] text-muted-foreground w-8 text-right">{Math.round(ks.mastery * 100)}%</span>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-1">{ks.attempts} 次练习 · {ks.correct_count} 次正确</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground text-center py-8">完成课程或算法练习后，知识图谱会自动填充</div>
-            )}
+            <KnowledgeGraph nodes={topSkills.map(ks => ({ id: ks.skill_name, name: ks.skill_name, category: ks.category, mastery: ks.mastery, attempts: ks.attempts }))} />
           </div>
 
           {/* 雷达图：按方向掌握度 */}
@@ -304,23 +294,16 @@ export default function AgentProfilePage() {
               <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-primary" /> 方向掌握度雷达
               </h3>
-              <div className="grid grid-cols-5 gap-3">
-                {(['python', 'cpp', 'database', 'algorithm', 'agent'] as const).map(cat => {
-                  const item = dashboard.radar.find(r => r.category === cat);
-                  const m = item?.mastery || 0;
-                  return (
-                    <div key={cat} className="text-center">
-                      <div className="relative w-16 h-16 mx-auto">
-                        <svg className="w-16 h-16 -rotate-90">
-                          <circle cx="32" cy="32" r="26" fill="none" stroke="currentColor" strokeWidth="4" className="text-surface-container" />
-                          <circle cx="32" cy="32" r="26" fill="none" stroke="currentColor" strokeWidth="4" className={masteryColor(m)} strokeDasharray={`${m * 163} 163`} strokeLinecap="round" />
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">{Math.round(m * 100)}%</div>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">{categoryLabels[cat] || cat}</div>
-                    </div>
-                  );
-                })}
+              <div className="w-full h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={dashboard.radar}>
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="category" tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                    <PolarRadiusAxis angle={90} domain={[0, 1]} tick={{ fontSize: 10 }} />
+                    <Radar dataKey="mastery" stroke="#6366f1" fill="#6366f1" fillOpacity={0.4} />
+                    <Tooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
               </div>
             </div>
           )}
@@ -361,17 +344,16 @@ export default function AgentProfilePage() {
               <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-primary" /> 最近 7 天学习趋势
               </h3>
-              <div className="flex items-end gap-2 h-32">
-                {dashboard.trend.map((t, i) => {
-                  const maxMins = Math.max(...dashboard.trend.map(d => d.minutes), 1);
-                  const h = Math.max(4, (t.minutes / maxMins) * 100);
-                  return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                      <div className="w-full bg-primary/60 rounded-t" style={{ height: `${h}%` }} title={`${t.date}: ${t.minutes}分钟`} />
-                      <span className="text-[10px] text-muted-foreground">{t.date.slice(5)}</span>
-                    </div>
-                  );
-                })}
+              <div className="w-full h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dashboard.trend}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(d: string) => d.slice(5)} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Bar dataKey="minutes" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
           )}
@@ -397,6 +379,14 @@ export default function AgentProfilePage() {
               </div>
             </div>
           )}
+
+          {/* 学习洞察（埋点数据分析） */}
+          <div className="p-6 bg-surface border border-border rounded-xl">
+            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" /> 学习洞察
+            </h3>
+            <InsightsCards insights={insights} />
+          </div>
         </div>
       </div>
 

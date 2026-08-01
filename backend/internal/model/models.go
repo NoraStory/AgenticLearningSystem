@@ -274,24 +274,6 @@ type UserProfile struct {
 	UpdatedAt           time.Time
 	CreatedAt           time.Time
 }
-type KnowledgeArea struct {
-	Name  string `json:"name"`
-	Level int    `json:"level"`
-	Color string `json:"color"`
-}
-type Topic struct {
-	Name        string `json:"name"`
-	Connections int    `json:"connections"`
-	Mastery     int    `json:"mastery"`
-}
-type UserKnowledgeGraph struct {
-	ID           string          `gorm:"type:uuid;primaryKey"`
-	UserID       string          `gorm:"type:uuid;uniqueIndex"`
-	Areas        []KnowledgeArea `gorm:"serializer:json;type:jsonb"`
-	RecentTopics []Topic         `gorm:"serializer:json;type:jsonb"`
-	UpdatedAt    time.Time
-	CreatedAt    time.Time
-}
 type KnowledgeState struct {
 	ID              string    `gorm:"type:uuid;primaryKey" json:"id"`
 	UserID          string    `gorm:"type:uuid;uniqueIndex:idx_kstate" json:"user_id"`
@@ -303,6 +285,18 @@ type KnowledgeState struct {
 	LastPracticedAt time.Time `json:"last_practiced_at"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
+}
+type BktParam struct {
+	ID         string    `gorm:"type:uuid;primaryKey" json:"id"`
+	Category   string    `gorm:"size:40;uniqueIndex:idx_bkt_cat;default:'global'" json:"category"`
+	Prior      float64   `json:"prior"`
+	Transition float64   `json:"transition"`
+	Guess      float64   `json:"guess"`
+	Slip       float64   `json:"slip"`
+	Source     string    `json:"source"`
+	SampleSize int       `json:"sample_size"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 type WorkflowExecution struct {
 	ID          string `gorm:"type:uuid;primaryKey" json:"workflow_id"`

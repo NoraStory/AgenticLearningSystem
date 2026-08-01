@@ -76,7 +76,7 @@ const fallbackHotTags = [
 ];
 
 // 推荐课程
-const fallbackRecommendedCourses = [
+const fallbackRecommendedCourses: { title: string; category: string; reason?: string }[] = [
   { title: 'Rust 入门到精通', category: 'Rust' },
   { title: '算法面试突破 100 题', category: '算法' },
   { title: 'LangChain 实战教程', category: 'Agent' },
@@ -94,7 +94,7 @@ export default function HomePage() {
     Promise.all([
       apiFetch<{ items: typeof fallbackArticles }>('/api/v1/courses?page_size=20'),
       apiFetch<{ tags: string[] }>('/api/v1/tags/hot'),
-      apiFetch<{ items: typeof fallbackRecommendedCourses }>('/api/v1/courses/recommended'),
+      apiFetch<{ items: typeof fallbackRecommendedCourses }>('/api/v1/courses/recommended/weak'),
       apiFetch<{ username: string }>('/api/v1/users/me'),
       apiFetch<{ streak_days: number }>('/api/v1/users/me/streak'),
     ]).then(([courseData, tagData, recommendedData, user, streak]) => {
@@ -318,6 +318,11 @@ export default function HomePage() {
                       <p className="text-xs text-muted-foreground">
                         {course.category}
                       </p>
+                      {course.reason && (
+                        <p className="text-[11px] text-primary/70 mt-0.5 truncate">
+                          {course.reason}
+                        </p>
+                      )}
                     </div>
                   </Link>
                 ))}

@@ -185,6 +185,9 @@ func (s *Server) toggleLike(c *gin.Context) {
 	}
 	var count int64
 	s.services.DB.Model(&model.CourseLike{}).Where("course_id = ?", courseID).Count(&count)
+	if liked {
+		s.trackEvent(userID(c), "like", "点赞了一门课程", gin.H{"course_id": courseID})
+	}
 	success(c, gin.H{"liked": liked, "like_count": count})
 }
 func (s *Server) toggleBookmark(c *gin.Context) {
@@ -194,6 +197,7 @@ func (s *Server) toggleBookmark(c *gin.Context) {
 		return
 	}
 	bookmarked := toggleFavorite(s, userID(c), uint(courseID))
+	s.trackEvent(userID(c), "bookmark", "收藏了一门课程", gin.H{"course_id": courseID, "bookmarked": bookmarked})
 	success(c, gin.H{"bookmarked": bookmarked})
 }
 func toggleFavorite(s *Server, uid string, courseID uint) bool {
@@ -244,6 +248,7 @@ func (s *Server) createNote(c *gin.Context) {
 		fail(c, 500, 500, "保存笔记失败")
 		return
 	}
+	s.trackEvent(userID(c), "note_create", "创建了一条笔记", gin.H{"course_id": in.CourseID})
 	success(c, gin.H{"note_id": n.ID})
 }
 func (s *Server) listProblems(c *gin.Context) {

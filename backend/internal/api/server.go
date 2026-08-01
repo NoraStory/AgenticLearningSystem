@@ -50,6 +50,7 @@ func New(cfg config.Config, services *database.Services, store *storage.Store, l
 	api.GET("/users/me/notes", s.notes)
 	api.GET("/courses", s.listCourses)
 	api.GET("/courses/recommended", s.recommendedCourses)
+	api.GET("/courses/recommended/weak", s.weakAreaRecommendations)
 	api.GET("/courses/resources", s.courseResources)
 	api.GET("/courses/tags", s.courseTags)
 	api.GET("/tags/hot", s.hotTags)
@@ -77,6 +78,7 @@ func New(cfg config.Config, services *database.Services, store *storage.Store, l
 	api.GET("/favorites", s.favorites)
 	api.POST("/notes", s.createNote)
 	api.GET("/notes", s.notes)
+	api.POST("/events", s.collectEvents)
 	api.POST("/agent/chat", s.agentChat)
 	api.GET("/agent/history", s.agentHistory)
 	api.GET("/agent/sessions", s.agentSessions)
@@ -86,9 +88,9 @@ func New(cfg config.Config, services *database.Services, store *storage.Store, l
 	api.PATCH("/agent/tools/:id", s.patchAgentTool)
 	api.GET("/agent/profile", s.agentProfile)
 	api.PUT("/agent/profile", s.updateProfile)
-	api.GET("/agent/knowledge", s.agentKnowledge)
 	api.GET("/agent/knowledge-states", s.knowledgeStates)
 	api.GET("/agent/dashboard", s.agentDashboard)
+	api.GET("/agent/insights", s.agentInsights)
 	api.POST("/agent/workflow/confirm", s.confirmWorkflow)
 	api.GET("/agent/workflow/:id", s.workflowStatus)
 	api.GET("/resume/templates", s.resumeTemplates)
@@ -108,6 +110,8 @@ func New(cfg config.Config, services *database.Services, store *storage.Store, l
 	api.POST("/interview/exams/:id/questions/:question_id/run", s.runExamQuestion)
 	api.POST("/interview/exams/:id/submit", s.submitExam)
 	api.GET("/search", s.search)
+	api.POST("/admin/bkt/fit", s.runBKTFit)
+	api.GET("/admin/bkt/params", s.bktParams)
 	s.router = r
 	return s
 }

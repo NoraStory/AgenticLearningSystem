@@ -34,7 +34,28 @@ func Seed(db *gorm.DB) error {
 	if err := seedTemplates(db); err != nil {
 		return err
 	}
+	if err := seedBktParams(db); err != nil {
+		return err
+	}
 	return seedUserData(db)
+}
+
+// seedBktParams 初始化 BKT 参数：5 大类 + global 兜底。
+// 幂等（FirstOrCreate），兼容已有开发库；拟合脚本运行后 source 变为 fitted。
+func seedBktParams(db *gorm.DB) error {
+	cats := []string{"python", "cpp", "database", "algorithm", "agent", "global"}
+	for _, c := range cats {
+		var count int64
+		db.Model(&model.BktParam{}).Where("category = ?", c).Count(&count)
+		if count > 0 {
+			continue
+		}
+		row := model.BktParam{ID: uuid.NewString(), Category: c, Prior: 0.1, Transition: 0.3, Guess: 0.25, Slip: 0.1, Source: "default"}
+		if err := db.Create(&row).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func seedCourses(db *gorm.DB) error {
@@ -156,13 +177,6 @@ func seedUserData(db *gorm.DB) error {
 	if err := db.Where("user_id = ?", DemoUserID).First(&p).Error; err == gorm.ErrRecordNotFound {
 		p = model.UserProfile{ID: uuid.NewString(), UserID: DemoUserID, Level: "中级开发者", FocusAreas: []string{"Python", "数据结构", "AI Agent"}, WeakAreas: []string{"并发编程", "系统设计"}, LearningStyle: "实践型", PreferredDifficulty: "中等", DailyGoal: 60, TotalStudyTime: 256, Streak: 15}
 		if err := db.Create(&p).Error; err != nil {
-			return err
-		}
-	}
-	var k model.UserKnowledgeGraph
-	if err := db.Where("user_id = ?", DemoUserID).First(&k).Error; err == gorm.ErrRecordNotFound {
-		k = model.UserKnowledgeGraph{ID: uuid.NewString(), UserID: DemoUserID, Areas: []model.KnowledgeArea{{Name: "Python 基础", Level: 85, Color: "bg-blue-500"}, {Name: "Python 进阶", Level: 62, Color: "bg-blue-600"}, {Name: "C++ 基础", Level: 45, Color: "bg-purple-500"}, {Name: "数据结构", Level: 58, Color: "bg-green-500"}, {Name: "算法", Level: 35, Color: "bg-orange-500"}, {Name: "数据库", Level: 40, Color: "bg-cyan-500"}, {Name: "AI Agent", Level: 28, Color: "bg-rose-500"}}, RecentTopics: []model.Topic{{Name: "Python 装饰器", Connections: 5, Mastery: 78}, {Name: "二叉树遍历", Connections: 3, Mastery: 65}, {Name: "SQL 连接", Connections: 4, Mastery: 72}, {Name: "LangChain Chain", Connections: 2, Mastery: 45}, {Name: "动态规划", Connections: 6, Mastery: 38}}}
-		if err := db.Create(&k).Error; err != nil {
 			return err
 		}
 	}

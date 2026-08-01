@@ -511,6 +511,7 @@ func (s *Server) search(c *gin.Context) {
 		success(c, gin.H{"courses": []any{}, "problems": []any{}, "notes": []any{}})
 		return
 	}
+	s.trackEvent(userID(c), "search", "搜索了"+q, gin.H{"query": q})
 	like := "%" + q + "%"
 	var courses []model.Course
 	var problems []model.Problem

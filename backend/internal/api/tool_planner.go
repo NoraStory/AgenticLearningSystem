@@ -115,6 +115,20 @@ func (s *Server) executeAgentTool(ctx context.Context, uid string, plan plannedT
 		var total, completed int64
 		s.services.DB.Model(&model.Course{}).Count(&total)
 		s.services.DB.Model(&model.LearningProgress{}).Where("user_id = ? AND progress >= 100", uid).Count(&completed)
+		var p model.UserProfile
+		if s.services.DB.Where("user_id = ?", uid).First(&p).Error == nil {
+			// 弱项 top3：按掌握度升序取有练习记录的
+			var states []model.KnowledgeState
+			s.services.DB.Where("user_id = ? AND attempts > 0", uid).Order("mastery asc").Limit(3).Find(&states)
+			if len(states) > 0 {
+				names := make([]string, 0, len(states))
+				for _, st := range states {
+					names = append(names, fmt.Sprintf("%s(%d%%)", st.SkillName, int(st.Mastery*100)))
+				}
+				return toolExecution{Context: fmt.Sprintf("当前用户课程完成 %d/%d；累计学习 %d 小时，连续打卡 %d 天；待加强知识点：%s。建议结合这些弱项给出复习建议。", completed, total, p.TotalStudyTime, p.Streak, strings.Join(names, "、")), Available: true}, nil
+			}
+			return toolExecution{Context: fmt.Sprintf("当前用户课程完成 %d/%d；累计学习 %d 小时，连续打卡 %d 天。", completed, total, p.TotalStudyTime, p.Streak), Available: true}, nil
+		}
 		return toolExecution{Context: fmt.Sprintf("当前用户课程完成 %d/%d。", completed, total), Available: true}, nil
 	case "web_search":
 		result, err := s.searchWeb(ctx, in.Message)

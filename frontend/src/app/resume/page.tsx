@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { apiDownload, apiFetch } from '@/lib/api';
+import { track } from '@/lib/track';
 import Markdown from '@/components/Markdown';
 import TemplateRegisterModal from './components/TemplateRegisterModal';
 import {
@@ -210,6 +211,7 @@ export default function ResumePage() {
       const result = await apiFetch<{ analysis: AnalysisResult; cached?: boolean }>('/api/v1/resume/analyze', {
         method: 'POST', body: JSON.stringify({ file_id: fileId }),
       });
+      track('resume_upload', { filename: uploadedFile.name, size: uploadedFile.size });
       setAnalysisResult(result.analysis);
       localStorage.setItem('codeforge_resume_analysis', JSON.stringify(result.analysis));
     } catch (error) {
@@ -247,6 +249,7 @@ export default function ResumePage() {
         { format: exportFormat, template_id: selectedTemplate || undefined, content: { text: optimizedResume } },
         `resume.${exportFormat}`,
       );
+      track('resume_export', { format: exportFormat });
     } catch (error) {
       console.error(error);
     }

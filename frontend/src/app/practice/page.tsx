@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
+import { track } from '@/lib/track';
 import { Heart, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, History, Loader2 } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 
@@ -104,6 +105,7 @@ export default function PracticePage() {
       setProblemList(data.items || []);
     }).catch(() => undefined);
     loadProblem(1);
+    track('problem_start', { problem_id: 1 });
   }, []);
 
   useEffect(() => {
@@ -175,6 +177,7 @@ export default function PracticePage() {
     setRunResult(null);
     loadProblem(pid);
     loadSubmissions(pid);
+    track('problem_start', { problem_id: pid });
   };
 
   const caseResults = runResult?.case_results || [];

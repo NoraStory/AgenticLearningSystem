@@ -61,7 +61,7 @@
 <td width="50%" align="center">
 <h3>📊 你的画像,AI 记得</h3>
 <p align="left">
-BKT 知识追踪 + 学习热力图 + 雷达图。系统知道你会什么、弱在哪,画像驱动 Agent 回答与推荐。
+BKT 知识追踪(参数可按分类落库、离线拟合) + ECharts 知识图谱 + 雷达图 + 热力图 + 学习洞察。系统知道你会什么、弱在哪,画像驱动 Agent 回答与个性化推荐。
 </p>
 </td>
 </tr>
@@ -188,7 +188,7 @@ SEARCH_BASE_URL=http://localhost:8081
 | 层 | 技术 |
 |------|------|
 | **后端** | Go 1.26 · Gin 1.10 · GORM 1.25 · JWT v5 · MinIO Go v7 · [Eino 0.9](https://github.com/cloudwego/eino)（Agent 编排） |
-| **前端** | Next.js 16 · React 19 · TypeScript 5 · Tailwind CSS 4 · shadcn/ui · Monaco（代码编辑器） |
+| **前端** | Next.js 16 · React 19 · TypeScript 5 · Tailwind CSS 4 · shadcn/ui · recharts + ECharts（图表）· Monaco（代码编辑器） |
 | **基础设施** | PostgreSQL 16 + pgvector（5432）· Redis 7.4（6379）· SearXNG（8081）· MinIO（9000/9001）· Gotenberg docx→PDF（3000）· Piston 代码执行（2000）· 全部 Docker 编排 |
 | **AI** | 火山引擎 Ark / 豆包（Responses API）· docxtpl（用户模板渲染）· shiki（代码高亮）· Mermaid 11（图表） |
 
@@ -276,6 +276,7 @@ corepack pnpm exec next build          # 生产构建
 | AI 编码约定 | [`AGENTS.md`](AGENTS.md) |
 | 功能优化与开源替代清单 | [`docs/功能优化与开源替代清单.md`](docs/功能优化与开源替代清单.md) |
 | AI 助手工作流改造方案 | [`docs/AI助手工作流改造方案.md`](docs/AI助手工作流改造方案.md) |
+| 用户画像优化与埋点分析 | [`docs/用户画像优化与埋点分析.md`](docs/用户画像优化与埋点分析.md) |
 
 ---
 
