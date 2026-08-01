@@ -52,6 +52,16 @@ backend/bin/
 backend/data/uploads/*
 !backend/data/uploads/.gitkeep
 
+# 注册后的 docx 模板(运行时生成,由 MinIO 原件重建)
+backend/data/templates/*
+
+# 本地开发工具
+.claude/
+.walicode/
+*.png
+*.jpg
+*.jpeg
+
 # Python (sandbox runtime inside backend)
 __pycache__/
 *.pyc

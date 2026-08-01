@@ -68,6 +68,20 @@ services:
       timeout: 5s
       retries: 20
 
+  # docx → PDF 保真转换(封装 LibreOffice,MIT 许可,替代本地安装)
+  gotenberg:
+    image: gotenberg/gotenberg:8-libreoffice
+    container_name: codeforge-gotenberg
+    restart: unless-stopped
+    command: ["gotenberg", "--api-timeout=60s"]
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
 volumes:
   codeforge_postgres_data:
   codeforge_redis_data:
