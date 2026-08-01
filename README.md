@@ -111,7 +111,7 @@ SEARCH_BASE_URL=http://localhost:8081
 | 🔌 后端 API | http://localhost:8080/health |
 | 📦 MinIO 控制台 | http://localhost:9001 |
 
-> 默认账号：`demo@codeforge.local` / `Demo123!`　·　`.\scripts\status.ps1` 查看状态　·　`.\scripts\stop.ps1` 停止
+> **账号**:右上角「登录 / 注册」(http://localhost:5000/auth),密码 Argon2id 加密存储 · 未登录以游客身份使用(数据为 Demo 用户) · `.\scripts\status.ps1` 查看状态　·　`.\scripts\stop.ps1` 停止
 
 ---
 

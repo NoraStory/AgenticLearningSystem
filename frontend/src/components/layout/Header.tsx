@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Braces, Search } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { Braces, LogOut, Search } from 'lucide-react';
+import { clearAuth, fetchMe, getToken, isLoggedIn } from '@/lib/api';
 
 const navItems = [
   { href: '/', label: '首页' },
@@ -19,6 +21,30 @@ const navItems = [
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [username, setUsername] = useState<string | null>(null);
+
+  // 登录态变化时刷新用户信息(token 变化后 localStorage 内容已更新)
+  const refreshUser = useCallback(() => {
+    if (!isLoggedIn()) {
+      setUsername(null);
+      return;
+    }
+    fetchMe()
+      .then((me) => setUsername(me.username))
+      .catch(() => setUsername(null)); // token 失效视为未登录
+  }, []);
+
+  useEffect(() => {
+    refreshUser();
+  }, [pathname, refreshUser]); // 路由变化时刷新(登录/登出后跳转)
+
+  const handleLogout = () => {
+    clearAuth();
+    setUsername(null);
+    router.push('/');
+    router.refresh();
+  };
 
   return (
     <header className="bg-surface/80 backdrop-blur-sm sticky top-0 z-40 h-14 flex items-center justify-between px-6 border-b border-outline/20">
@@ -49,12 +75,34 @@ export function Header() {
         <button className="p-2 text-muted-foreground hover:text-primary transition-colors">
           <Search className="w-4 h-4" />
         </button>
-        <Link
-          href="/profile"
-          className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary cursor-pointer hover:bg-primary/20 transition-colors"
-        >
-          初
-        </Link>
+        {username ? (
+          <div className="flex items-center gap-2">
+            <Link
+              href="/profile"
+              className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-surface-container transition-colors cursor-pointer"
+              title={username}
+            >
+              <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
+                {username.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="text-sm text-foreground max-w-[8rem] truncate">{username}</span>
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+              title="退出登录"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <Link
+            href="/auth"
+            className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            登录 / 注册
+          </Link>
+        )}
       </div>
     </header>
   );

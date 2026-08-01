@@ -60,3 +60,56 @@ export async function apiDownload(path: string, body: unknown, filename: string)
 export function jsonBody(value: unknown): RequestInit {
   return { method: 'POST', body: JSON.stringify(value) };
 }
+
+// ---- 用户态管理 ----
+
+export interface AuthUser {
+  user_id: string;
+  username: string;
+  email?: string;
+  avatar?: string;
+  level?: number;
+  level_title?: string;
+  stats?: Record<string, number>;
+}
+
+export interface AuthResult {
+  user_id: string;
+  username: string;
+  token: string;
+  refresh_token: string;
+  expires_in: number;
+}
+
+const TOKEN_KEY = 'codeforge_token';
+const REFRESH_KEY = 'codeforge_refresh_token';
+
+export function getToken(): string | null {
+  return typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+}
+
+export function isLoggedIn(): boolean {
+  return !!getToken();
+}
+
+export function saveAuth(result: AuthResult) {
+  localStorage.setItem(TOKEN_KEY, result.token);
+  localStorage.setItem(REFRESH_KEY, result.refresh_token);
+}
+
+export function clearAuth() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+}
+
+export function login(email: string, password: string) {
+  return apiFetch<AuthResult>('/api/v1/auth/login', jsonBody({ email, password }));
+}
+
+export function register(username: string, email: string, password: string) {
+  return apiFetch<AuthResult>('/api/v1/auth/register', jsonBody({ username, email, password }));
+}
+
+export function fetchMe() {
+  return apiFetch<AuthUser>('/api/v1/users/me');
+}
