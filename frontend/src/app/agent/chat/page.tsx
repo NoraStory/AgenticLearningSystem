@@ -7,14 +7,14 @@ import { apiFetch } from '@/lib/api';
 import Markdown from '@/components/Markdown';
 import Mermaid from '@/components/Mermaid';
 
-// Agent 类型
+// Agent 类型：id 与后端 routeAgent 返回的 agent_type 一一对应
 const agents = [
-  { id: 'learning', name: '学习助手', icon: BookOpen, desc: '概念问答，RAG检索', color: 'bg-blue-500' },
-  { id: 'reviewer', name: '代码审查', icon: Code, desc: '代码审查，优化建议', color: 'bg-green-500' },
-  { id: 'tutor', name: '题目讲解', icon: MessageSquare, desc: '题目讲解，解题引导', color: 'bg-orange-500' },
-  { id: 'mentor', name: '项目导师', icon: Sparkles, desc: '项目实战，架构建议', color: 'bg-purple-500' },
-  { id: 'coach', name: '面试教练', icon: Bot, desc: '面试模拟，出题评分', color: 'bg-rose-500' },
-  { id: 'community', name: '社区助手', icon: MessageSquare, desc: '博客/README生成', color: 'bg-cyan-500' },
+  { id: 'learning-assistant', name: '学习助手', icon: BookOpen, desc: '概念问答，课程资源检索', color: 'bg-blue-500' },
+  { id: 'code-review', name: '代码审查', icon: Code, desc: '代码分析，错误定位与修复', color: 'bg-green-500' },
+  { id: 'problem-explain', name: '题目讲解', icon: MessageSquare, desc: '算法题讲解，解题引导', color: 'bg-orange-500' },
+  { id: 'planner', name: '学习规划', icon: Sparkles, desc: '学习计划与路径规划', color: 'bg-purple-500' },
+  { id: 'project', name: '项目导师', icon: Bot, desc: '项目实战，架构建议', color: 'bg-rose-500' },
+  { id: 'career', name: '求职助手', icon: Bot, desc: '简历与求职指导', color: 'bg-cyan-500' },
 ];
 
 // 工作流步骤类型
@@ -50,7 +50,7 @@ type SessionSummary = {
 
 // 初始消息
 const mockMessages: ChatMessage[] = [
-  { role: 'assistant', agent: 'learning', content: '你好！我是学习助手，可以帮你解答编程概念、检索课程资源。有什么可以帮你的吗？', workflow: null as WorkflowStep[] | null },
+  { role: 'assistant', agent: 'learning-assistant', content: '你好！我是学习助手，可以帮你解答编程概念、检索课程资源。有什么可以帮你的吗？', workflow: null as WorkflowStep[] | null },
 ];
 
 
@@ -116,7 +116,7 @@ export default function AgentChatPage() {
         const artifacts = workflow?.flatMap((step) => extractMermaidBlocks(step.result || '')) || [];
         return {
           role: item.role as ChatMessage['role'],
-          agent: item.agent || 'learning',
+          agent: item.agent || 'learning-assistant',
           content: item.content || '',
           workflow,
           artifacts,
@@ -226,7 +226,7 @@ export default function AgentChatPage() {
       localStorage.setItem('codeforge_agent_session_id', activeSessionId);
     }
     const userMsg: ChatMessage = { role: 'user', agent: 'user', content: message || '请分析我上传的附件。', workflow: null };
-    const assistantMsg: ChatMessage = { role: 'assistant', agent: selectedAgent || 'learning', content: '', workflow: [], artifacts: [] };
+    const assistantMsg: ChatMessage = { role: 'assistant', agent: selectedAgent || 'learning-assistant', content: '', workflow: [], artifacts: [] };
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setInput('');
     setIsLoading(true);
@@ -245,7 +245,7 @@ export default function AgentChatPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
-        body: JSON.stringify({ session_id: activeSessionId, message: message || '请分析我上传的图片或附件。', agent_type: selectedAgent || undefined, attachments: uploaded, collaboration_mode: 'dynamic', context: { current_page: '/agent/chat' } }),
+        body: JSON.stringify({ session_id: activeSessionId, message: message || '请分析我上传的图片或附件。', agent_type: selectedAgent || undefined, attachments: uploaded, context: { current_page: '/agent/chat' } }),
       });
       if (!response.ok || !response.body) throw new Error(`Agent 服务不可用（HTTP ${response.status}）`);
       const reader = response.body.getReader();
@@ -384,13 +384,8 @@ export default function AgentChatPage() {
           </div>
 
           <div className="mt-3 pt-3 border-t border-border">
-            <h4 className="text-xs font-medium text-muted-foreground mb-2">协作模式</h4>
-            <div className="space-y-1">
-              <button className="w-full text-left px-2 py-1 text-xs rounded hover:bg-surface-container text-foreground">串行接力</button>
-              <button className="w-full text-left px-2 py-1 text-xs rounded hover:bg-surface-container text-foreground">并行合并</button>
-              <button className="w-full text-left px-2 py-1 text-xs rounded hover:bg-surface-container text-foreground">辩论模式</button>
-              <button className="w-full text-left px-2 py-1 text-xs rounded hover:bg-surface-container text-foreground">师徒模式</button>
-            </div>
+            <h4 className="text-xs font-medium text-muted-foreground mb-1.5">协作模式</h4>
+            <p className="text-[11px] text-muted-foreground/70 leading-relaxed">自动规划：AI 根据问题动态决策工具调用序列，一次请求内多轮协作。</p>
           </div>
         </div>
       </div>

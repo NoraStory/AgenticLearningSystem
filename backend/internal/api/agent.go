@@ -83,45 +83,12 @@ func (s *Server) agentChat(c *gin.Context) {
 	writeSSE(c, "workflow_step", routeStep)
 	c.Writer.Flush()
 	workflow := []gin.H{routeStep}
-	toolContexts := []string{}
 	imageDataURLs := []string{}
-	toolFailures := 0
-	for _, plan := range s.planAgentTools(uid, in, conversationHistory) {
-		stepID := "tool-" + plan.Meta.ID
-		running := gin.H{"id": stepID, "name": plan.Meta.Name, "status": "running", "tool": plan.Meta.ID, "reason": plan.Reason, "phase": plan.Phase, "depends_on": plan.DependsOn}
-		writeSSE(c, "workflow_step", running)
-		writeSSE(c, "tool_call", gin.H{"tool": plan.Meta.ID, "name": plan.Meta.Name, "reason": plan.Reason, "phase": plan.Phase, "depends_on": plan.DependsOn})
-		c.Writer.Flush()
-		toolInput := in
-		toolInput.Message = contextualToolMessage(in.Message, conversationHistory)
-		execution, attempts, toolErr := s.executeWithRetry(c.Request.Context(), uid, plan, toolInput, maxToolRetries)
-		status := "completed"
-		result := execution.Context
-		if toolErr != nil {
-			status = "failed"
-			result = toolErr.Error()
-			toolFailures++
-			writeSSE(c, "tool_failure", gin.H{"tool": plan.Meta.ID, "attempts": attempts, "max_retries": maxToolRetries, "error": toolErr.Error(), "total_failures": toolFailures})
-		} else if !execution.Available {
-			status = "unavailable"
-		}
-		if toolErr != nil {
-			toolContexts = append(toolContexts, toolFailureContext(plan.Meta.Name, attempts, toolErr.Error()))
-		} else {
-			toolContexts = append(toolContexts, result)
-		}
-		imageDataURLs = append(imageDataURLs, execution.Images...)
-		writeSSE(c, "tool_result", gin.H{"tool": plan.Meta.ID, "status": status, "result": result, "available": execution.Available, "phase": plan.Phase, "attempts": attempts})
-		completed := gin.H{"id": stepID, "name": plan.Meta.Name, "status": status, "tool": plan.Meta.ID, "result": result, "phase": plan.Phase, "depends_on": plan.DependsOn, "attempts": attempts}
-		writeSSE(c, "workflow_step", completed)
-		workflow = append(workflow, completed)
-		c.Writer.Flush()
-	}
 	prompt := strings.TrimSpace(in.Message)
 	if prompt == "" && len(in.Attachments) > 0 {
 		prompt = "\u8bf7\u7b80\u6d01\u8bc6\u522b\u5e76\u5206\u6790\u4e0a\u4f20\u7684\u56fe\u7247\u3002"
 	}
-	prompt = buildConversationPrompt(prompt, conversationHistory, toolContexts)
+	prompt = buildConversationPrompt(prompt, conversationHistory, nil)
 	analysisRunning := gin.H{"id": "analyze", "name": "问题分析", "status": "running", "agent": in.AgentType}
 	writeSSE(c, "workflow_step", analysisRunning)
 	c.Writer.Flush()
@@ -130,23 +97,39 @@ func (s *Server) agentChat(c *gin.Context) {
 	answerRunning := gin.H{"id": "answer", "name": "生成回答", "status": "running", "agent": in.AgentType}
 	writeSSE(c, "workflow_step", answerRunning)
 	c.Writer.Flush()
+	// 生成回答：优先走 eino 工具循环（模型自主决策工具调用），LLM 不可用时回退流式直答
 	systemPrompt := buildSystemPrompt(false)
 	if len(imageDataURLs) > 0 {
 		systemPrompt = buildSystemPrompt(true)
 	}
 	var answer strings.Builder
-	streamErr := s.llm.StreamChatWithImages(c.Request.Context(), systemPrompt, prompt, imageDataURLs, func(delta string) {
-		answer.WriteString(delta)
-		writeSSE(c, "token", gin.H{"content": delta})
-		c.Writer.Flush()
-	})
-	if streamErr != nil {
-		failure := "模型服务暂时不可用：" + streamErr.Error()
-		if answer.Len() == 0 {
-			answer.WriteString(failure)
-			writeSSE(c, "token", gin.H{"content": failure})
+	if s.llm.Enabled() {
+		if _, loopErr := s.runAgentLoop(c, uid, systemPrompt, prompt, in, conversationHistory, func(delta string) {
+			answer.WriteString(delta)
+			writeSSE(c, "token", gin.H{"content": delta})
 			c.Writer.Flush()
+		}); loopErr != nil {
+			answer.WriteString("（工具协作出错：" + loopErr.Error() + "）")
 		}
+	} else {
+		streamErr := s.llm.StreamChatWithImages(c.Request.Context(), systemPrompt, prompt, imageDataURLs, func(delta string) {
+			answer.WriteString(delta)
+			writeSSE(c, "token", gin.H{"content": delta})
+			c.Writer.Flush()
+		})
+		if streamErr != nil {
+			failure := "模型服务暂时不可用：" + streamErr.Error()
+			if answer.Len() == 0 {
+				answer.WriteString(failure)
+				writeSSE(c, "token", gin.H{"content": failure})
+				c.Writer.Flush()
+			}
+		}
+	}
+	if answer.Len() == 0 {
+		answer.WriteString("（未能生成回答，请稍后重试）")
+		writeSSE(c, "token", gin.H{"content": answer.String()})
+		c.Writer.Flush()
 	}
 	answerDone := gin.H{"id": "answer", "name": "生成回答", "status": "completed", "agent": in.AgentType}
 	writeSSE(c, "workflow_step", answerDone)

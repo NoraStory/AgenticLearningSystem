@@ -55,101 +55,6 @@ func toolCapability(id string) (bool, string) {
 	}
 }
 
-func (s *Server) planAgentTools(uid string, in agentChatInput, history []model.SessionMessage) []plannedTool {
-	enabled := map[string]bool{}
-	for _, t := range toolCatalog {
-		enabled[t.ID] = true
-	}
-	var settings []model.UserToolSetting
-	s.services.DB.Where("user_id = ?", uid).Find(&settings)
-	for _, setting := range settings {
-		enabled[setting.ToolID] = setting.Enabled
-	}
-	for _, t := range toolCatalog {
-		if t.Locked {
-			enabled[t.ID] = true
-		}
-	}
-
-	query := strings.ToLower(in.Message)
-	page, _ := in.Context["current_page"].(string)
-	selected := []plannedTool{}
-	seen := map[string]bool{}
-	add := func(id, reason string) {
-		if seen[id] || !enabled[id] {
-			return
-		}
-		for _, t := range toolCatalog {
-			if t.ID == id {
-				selected = append(selected, plannedTool{Meta: t, Reason: reason, Phase: toolPhases[id]})
-				seen[id] = true
-				return
-			}
-		}
-	}
-	// A short follow-up should reuse conversation memory and go straight to the answer.
-	if len(history) > 0 && isContextualFollowUp(in.Message) && len(in.Attachments) == 0 && !containsAny(query,
-		"\u4ee3\u7801", "bug", "sql", "\u6700\u65b0", "\u4eca\u5929", "\u65b0\u95fb", "\u8054\u7f51", "\u641c\u7d22", "\u8fd0\u884c", "\u6267\u884c", "\u4fee\u590d", "\u9898", "\u8bfe\u7a0b", "\u6559\u7a0b", "\u5b66\u4e60\u8d44\u6599", "\u7b80\u5386", "\u6c42\u804c", "\u9879\u76ee", "\u6d41\u7a0b\u56fe", "\u67b6\u6784\u56fe", "\u6d4b\u9a8c", "\u51fa\u9898", "\u601d\u7ef4\u5bfc\u56fe", "git", "commit", "quiz") {
-		return selected
-	}
-	if len(in.Attachments) > 0 {
-		add("doc_reader", "检测到图片或文件附件，先读取可识别内容")
-	}
-	if containsAny(query, "最新", "今天", "新闻", "联网", "搜索网页", "查资料", "look up", "search web", "实时", "当前", "现在", "2024", "2025", "2026", "更新", "变化", "动态", "热点", "发布", "版本", "release", "最新版", "最新动态", "资讯", "行情", "趋势", "上线", "公告", "什么是", "什么是", "介绍一下", "了解", "对比", "区别", "推荐", "best", "latest", "current", "news", "update", "version", "trend") {
-		add("web_search", "问题需要联网获取最新资料")
-	}
-	if containsAny(query, "代码", "报错", "bug", "异常", "编译", "函数", "class ", "def ") {
-		add("code_search", "问题涉及代码或错误定位")
-	}
-	if containsAny(query, "运行代码", "执行代码", "测试代码", "run code") {
-		add("code_execute", "用户明确要求运行或测试代码")
-	}
-	if containsAny(query, "修复代码", "自动修复", "修 bug", "self heal") {
-		if _, _, ok := extractCode(in.Message); ok {
-			add("code_execute", "先运行代码收集可复现的错误信息")
-		}
-		add("self_heal", "用户要求分析并修复代码")
-	}
-	if containsAny(query, "leetcode", "力扣", "算法题", "题目") {
-		add("leetcode_fetch", "问题涉及算法题或题目检索")
-	}
-	if containsAny(query, "sql", "数据库查询", "执行计划", "索引优化") {
-		add("sql_explain", "问题涉及 SQL 或查询优化")
-	}
-	if containsAny(query, "课程", "教程", "学习资料", "知识点") || strings.Contains(page, "course") {
-		add("course_search", "需要检索站内学习内容")
-	}
-	if containsAny(query, "学习进度", "完成度", "学习时长", "连续学习") || strings.Contains(page, "profile") {
-		add("progress_query", "需要读取当前用户学习数据")
-	}
-	if containsAny(query, "简历", "求职", "ats") {
-		add("resume_review", "问题涉及简历或求职")
-	}
-	if containsAny(query, "项目评审", "项目分析", "源码项目", "项目审阅") {
-		add("project_review", "问题涉及项目评审")
-	}
-	if containsAny(query, "架构图", "流程图", "mermaid", "画图") {
-		add("diagram_gen", "用户需要图表或流程图")
-	}
-	if containsAny(query, "测验", "出题", "练习题", "quiz") {
-		add("quiz_gen", "用户需要生成测验")
-	}
-	if containsAny(query, "思维导图", "mindmap") {
-		add("mindmap_gen", "用户需要思维导图")
-	}
-	if containsAny(query, "git", "提交信息", "commit", "分支", "工作区状态") {
-		add("git_helper", "问题涉及 Git 或工作区变更")
-	}
-	// 关键词未命中时，用 LLM 判断是否需要联网搜索
-	if !seen["web_search"] && s.llm != nil && s.llm.Enabled() {
-		decision := s.llmShouldSearch(in.Message, history)
-		if decision {
-			add("web_search", "AI 判断该问题需要联网获取外部信息")
-		}
-	}
-	return scheduleTools(selected)
-}
-
 // Keep execution sequential for deterministic SSE ordering, but expose phases and dependencies.
 func scheduleTools(tools []plannedTool) []plannedTool {
 	for i := range tools {
@@ -779,17 +684,4 @@ func wikiSearch(ctx context.Context, q string) (string, error) {
 		return "", fmt.Errorf("Wikipedia 没有返回结果")
 	}
 	return "联网搜索（Wikipedia 回退）：\n- " + strings.Join(parts, "\n- "), nil
-}
-
-// llmShouldSearch 用 LLM 快速判断当前问题是否需要联网搜索。
-// 仅在关键词规则未命中时调用，避免每次请求都消耗 LLM 额度。
-func (s *Server) llmShouldSearch(message string, history []model.SessionMessage) bool {
-	systemPrompt := "你是一个搜索意图判断器。判断用户的问题是否需要联网搜索才能回答（例如：需要最新信息、实时数据、新闻、技术版本、具体事实查证、产品对比等）。只回答 JSON：{\"need_search\": true} 或 {\"need_search\": false}。不要回答其他内容。"
-	userPrompt := "问题：" + message + "\n\n请判断是否需要联网搜索。"
-	answer, err := s.llm.Chat(context.Background(), systemPrompt, userPrompt)
-	if err != nil {
-		return false
-	}
-	answer = strings.ToLower(strings.TrimSpace(answer))
-	return strings.Contains(answer, "true")
 }
