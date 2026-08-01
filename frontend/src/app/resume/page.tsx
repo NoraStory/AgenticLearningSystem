@@ -67,6 +67,22 @@ export default function ResumePage() {
       .then((data) => setTemplates(data.templates))
       .catch(() => setTemplates(getMockTemplates()))
       .finally(() => setIsLoadingTemplates(false));
+
+    // 恢复上次会话的分析状态(离开页面再回来不丢失)
+    const savedId = localStorage.getItem('codeforge_resume_file_id');
+    const savedName = localStorage.getItem('codeforge_resume_filename');
+    const savedAnalysis = localStorage.getItem('codeforge_resume_analysis');
+    if (savedId && savedName) {
+      setUploadedFileId(savedId);
+      setUploadedFile(new File([], savedName));
+      if (savedAnalysis) {
+        try {
+          setAnalysisResult(JSON.parse(savedAnalysis));
+        } catch {
+          /* ignore corrupt cache */
+        }
+      }
+    }
   }, []);
   // Mock 模板数据（实际应从数据库获取）
   const getMockTemplates = (): ResumeTemplate[] => [
@@ -173,14 +189,29 @@ export default function ResumePage() {
     if (!uploadedFile) return;
     setIsAnalyzing(true);
     try {
-      const form = new FormData();
-      form.append('file', uploadedFile);
-      const uploaded = await apiFetch<{ file_id: string }>('/api/v1/resume/upload', { method: 'POST', body: form });
-      setUploadedFileId(uploaded.file_id);
-      const result = await apiFetch<{ analysis: AnalysisResult }>('/api/v1/resume/analyze', {
-        method: 'POST', body: JSON.stringify({ file_id: uploaded.file_id }),
+      // 已有 file_id 且本地有分析结果,直接复用,不重复调后端
+      if (uploadedFileId && analysisResult) {
+        return;
+      }
+      let fileId = uploadedFileId;
+      if (!fileId && uploadedFile.name && uploadedFile.size === 0) {
+        // 从 localStorage 恢复的占位 File,已有 file_id
+        fileId = localStorage.getItem('codeforge_resume_file_id') || '';
+      }
+      if (!fileId) {
+        const form = new FormData();
+        form.append('file', uploadedFile);
+        const uploaded = await apiFetch<{ file_id: string }>('/api/v1/resume/upload', { method: 'POST', body: form });
+        fileId = uploaded.file_id;
+        setUploadedFileId(fileId);
+        localStorage.setItem('codeforge_resume_file_id', fileId);
+        localStorage.setItem('codeforge_resume_filename', uploadedFile.name);
+      }
+      const result = await apiFetch<{ analysis: AnalysisResult; cached?: boolean }>('/api/v1/resume/analyze', {
+        method: 'POST', body: JSON.stringify({ file_id: fileId }),
       });
       setAnalysisResult(result.analysis);
+      localStorage.setItem('codeforge_resume_analysis', JSON.stringify(result.analysis));
     } catch (error) {
       console.error(error);
     } finally {
@@ -226,6 +257,9 @@ export default function ResumePage() {
     setUploadedFileId('');
     setAnalysisResult(null);
     setOptimizedResume('');
+    localStorage.removeItem('codeforge_resume_file_id');
+    localStorage.removeItem('codeforge_resume_filename');
+    localStorage.removeItem('codeforge_resume_analysis');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }

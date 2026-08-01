@@ -104,7 +104,26 @@ func (s *Server) extractDocxText(c *gin.Context, rc io.Reader) (string, error) {
 
 // ---- LLM 分析 ----
 
-// llmAnalyzeResume 用 LLM 分析简历文本,输出与前端 AnalysisResult 兼容的结构。LLM 不可用/解析失败时返回基础结构。
+// looksLikeResume 粗略判断文本是否像简历(有姓名/联系方式/经历等特征)。
+func looksLikeResume(text string) bool {
+	if len(text) > 20000 {
+		return false // 简历一般不会这么长,多半是教程/文档
+	}
+	patterns := []*regexp.Regexp{
+		regexp.MustCompile(`(?i)(\bemail\b|@\w+\.\w+|\bphone\b|电话|手机|邮箱)`),
+		regexp.MustCompile(`(?i)(工作经历|项目经验|教育背景|技能清单|实习经历|experience|education|skill)`),
+		regexp.MustCompile(`(?i)(\bgithub\.com\b|\blinkedin\b|简历|resume|cv)`),
+	}
+	hits := 0
+	for _, re := range patterns {
+		if re.MatchString(text) {
+			hits++
+		}
+	}
+	return hits >= 2
+}
+
+// llmAnalyzeResume 用 LLM 分析简历文本,输出与前端 AnalysisResult 兼容的结构。LLM 不可用/解析失败/内容不像简历时返回基础结构。
 func (s *Server) llmAnalyzeResume(text string) gin.H {
 	fallback := gin.H{
 		"score":        0,
@@ -118,9 +137,14 @@ func (s *Server) llmAnalyzeResume(text string) gin.H {
 	if !s.llm.Enabled() || strings.TrimSpace(text) == "" {
 		return fallback
 	}
+	if !looksLikeResume(text) {
+		fallback["message"] = "上传的文件看起来不是简历(缺少姓名/联系方式/经历等特征),请上传 PDF、DOCX 或 TXT 格式的个人简历。"
+		return fallback
+	}
 	systemPrompt := "你是资深 HR 与 ATS 简历分析师。请分析简历并输出 JSON,结构为:{\"score\":0-100,\"atsScore\":0-100,\"keywordMatch\":[{\"keyword\":\"...\",\"found\":true/false}],\"strengths\":[\"...\"],\"weaknesses\":[\"...\"],\"suggestions\":[\"...\"]}。要求:分数基于简历真实内容;keywordMatch 覆盖常见技术关键词并标注是否命中;strengths/weaknesses/suggestions 各 3-5 条,具体且可操作。只返回 JSON。"
 	answer, err := s.llm.Chat(context.Background(), systemPrompt, text)
 	if err != nil {
+		fmt.Printf("[LLM-ANALYZE-ERR] %v\n", err)
 		return fallback
 	}
 	answer = cleanJSON(answer)
@@ -129,7 +153,17 @@ func (s *Server) llmAnalyzeResume(text string) gin.H {
 		out["fallback"] = false
 		return out
 	}
+	fmt.Printf("[LLM-ANALYZE-PARSE-ERR] len=%d prefix=%q\n", len(answer), truncate(answer, 300))
 	return fallback
+}
+
+// truncate 安全截取字符串(避免中文字符截断)。
+func truncate(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
 }
 
 // cleanJSON 去掉 LLM 输出中的 ```json 包裹。

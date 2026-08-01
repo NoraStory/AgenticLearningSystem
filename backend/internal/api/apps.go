@@ -69,6 +69,16 @@ func (s *Server) resumeAnalyze(c *gin.Context) {
 		fail(c, 404, 404, "简历文件不存在")
 		return
 	}
+	// 已分析过(且是有效结果)直接复用,避免重复调用慢速 LLM
+	if r.AnalysisJSON != "" && r.AnalysisJSON != "{}" && r.AnalysisJSON != "null" {
+		var cached gin.H
+		if json.Unmarshal([]byte(r.AnalysisJSON), &cached) == nil {
+			if fb, ok := cached["fallback"].(bool); !ok || !fb {
+				success(c, gin.H{"success": true, "analysis": cached, "cached": true})
+				return
+			}
+		}
+	}
 	text, err := s.extractResumeText(c, r.ObjectKey, r.Filename)
 	if err != nil {
 		fail(c, 422, 422, err.Error())
