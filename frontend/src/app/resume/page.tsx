@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { apiDownload, apiFetch } from '@/lib/api';
+import Markdown from '@/components/Markdown';
+import TemplateRegisterModal from './components/TemplateRegisterModal';
 import {
   Upload,
   FileText,
@@ -14,6 +16,7 @@ import {
   Eye,
   RefreshCw,
   X,
+  Plus,
 } from 'lucide-react';
 
 // 模板类型定义（对应数据库结构）
@@ -55,6 +58,7 @@ export default function ResumePage() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizedResume, setOptimizedResume] = useState<string>('');
   const [exportFormat, setExportFormat] = useState<'pdf' | 'docx' | 'html'>('pdf');
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 从后端数据库读取模板
@@ -204,9 +208,17 @@ export default function ResumePage() {
       setIsOptimizing(false);
     }
   };
-  const handleExport = () => {
-    // 模拟导出
-    alert(`正在导出为 ${exportFormat.toUpperCase()} 格式...`);
+  const handleExport = async () => {
+    if (!optimizedResume) return;
+    try {
+      await apiDownload(
+        '/api/v1/resume/export',
+        { format: exportFormat, template_id: selectedTemplate || undefined, content: { text: optimizedResume } },
+        `resume.${exportFormat}`,
+      );
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleRemoveFile = () => {
@@ -440,8 +452,16 @@ export default function ResumePage() {
             <div className="bg-card rounded-xl border border-border p-6">
               <h2 className="text-lg font-semibold text-foreground mb-4">选择简历模板</h2>
               <p className="text-sm text-muted-foreground mb-4">
-                模板从数据库加载，AI 将读取模板结构并写入优化内容
+                模板从数据库加载,AI 将读取模板结构并写入优化内容。也可上传你自己的 DOCX 模板。
               </p>
+
+              <button
+                onClick={() => setShowTemplateModal(true)}
+                className="mb-4 w-full px-4 py-2.5 rounded-lg border-2 border-dashed border-primary/40 text-sm text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                上传我的 DOCX 模板
+              </button>
 
               {/* 分类筛选 */}
               <div className="flex flex-wrap gap-2 mb-4">
@@ -557,9 +577,7 @@ export default function ResumePage() {
                     </div>
 
                     <div className="bg-muted/50 rounded-xl p-6 mb-4 max-h-96 overflow-y-auto">
-                      <pre className="whitespace-pre-wrap text-sm text-foreground font-mono">
-                        {optimizedResume}
-                      </pre>
+                      <Markdown>{optimizedResume}</Markdown>
                     </div>
 
                     {/* 导出选项 */}
@@ -617,6 +635,17 @@ export default function ResumePage() {
           </div>
         )}
       </div>
+
+      {showTemplateModal && (
+        <TemplateRegisterModal
+          onClose={() => setShowTemplateModal(false)}
+          onRegistered={() => {
+            apiFetch<{ templates: ResumeTemplate[] }>('/api/v1/resume/templates')
+              .then((data) => setTemplates(data.templates))
+              .catch(() => undefined);
+          }}
+        />
+      )}
     </div>
   );
 }

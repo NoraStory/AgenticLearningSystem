@@ -63,6 +63,7 @@
 - 学习进度 · 时长统计 · 连续打卡 · 活动流 · 成就
 - 用户画像 · 知识图谱 · 学习路径
 - 简历分析 · 项目实战 · 笔试模拟
+- **简历优化** — 支持上传自己的 DOCX 模板,AI 优化内容后按模板样式导出(docx/pdf)
 - 代码沙箱（Python / JS / C++ / Rust）
 
 </td>
@@ -189,6 +190,7 @@
 | Redis 7.4 | 6379 |
 | SearXNG | 8081 |
 | MinIO | 9000 / 9001 |
+| Gotenberg（docx→PDF） | 3000 |
 
 </td>
 </tr>
@@ -300,7 +302,7 @@ AgenticLearningSystem/
 ├── searxng/settings.yml            # 🔍 SearXNG 配置
 ├── tests/fixtures/                 # 🧪 测试夹具
 ├── docs/banner.svg                 # 🎨 README Banner
-├── docker-compose.yml              # 🐳 基础设施编排
+├── docker-compose.yml              # 🐳 基础设施编排（PostgreSQL/Redis/SearXNG/MinIO/Gotenberg）
 ├── .env.example                    # 📋 环境变量模板
 ├── AGENTS.md                       # 🤖 AI 编码约定
 └── README.md                       # 📖 你在这里
@@ -328,7 +330,7 @@ corepack pnpm exec next build          # 生产构建
 
 | 运行时 | 缓存目录 | 说明 |
 |--------|----------|------|
-| Python | `backend/.venv/` | `python -m venv` |
+| Python | `backend/.venv/` | `python -m venv`；docx 模板渲染依赖 `python-docx` + `docxtpl`(见 `backend/scripts/requirements.txt`) |
 | Go | `backend/.gomodcache/` `.gocache/` `.gopath/` | 环境变量指定 |
 | 前端 | `frontend/.corepack/` `.pnpm-store/` | corepack 管理 |
 

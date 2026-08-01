@@ -118,7 +118,7 @@ pnpm start
 | 用户画像 | `/agent/profile` | 学习画像、能力雷达图、知识图谱可视化、掌握状态 |
 | 笔试模拟 | `/interview` | 代码题（LeetCode风格编辑器）+ 问答题（文本框），AI评分讲解 |
 | 项目实战 | `/project` | 自建项目、AI生成任务清单、上传源码、AI分析完成情况 |
-| 简历分析 | `/resume` | 上传简历AI分析、选择模板AI优化、导出PDF/DOCX/HTML |
+| 简历分析 | `/resume` | 上传简历AI分析、选择模板AI优化、导出PDF/DOCX/HTML；支持上传自己的 DOCX 模板（注册后按模板样式导出） |
 | 课程详情 | `/course/[id]` | 文章详情页，含代码块、TOC 目录、评论区 |
 | 在线练习 | `/practice` | 代码练习页，左右分栏（题目描述 + 代码编辑器） |
 | 学习路径 | `/learning-path` | 学习路线图，时间轴展示各阶段 |
