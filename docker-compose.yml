@@ -82,8 +82,25 @@ services:
       timeout: 5s
       retries: 12
 
+  # 不可信代码执行引擎(MIT 许可,自建实例;isolate 容器化隔离替代手写黑名单沙箱)
+  # privileged 是 Piston/isolate 的官方要求(需创建 cgroup/namespace),见其 README
+  # ⚠️ 首次启动后需安装语言运行时(需可访问 GitHub releases):
+  #   docker exec -it codeforge-piston sh -c "cd /tmp && git clone https://github.com/engineer-man/piston && cd piston/cli && npm i && node index.js install python javascript cpp rust"
+  # 未安装运行时:后端自动降级本地黑名单沙箱,功能不受影响
+  piston:
+    image: ghcr.io/engineer-man/piston:latest
+    container_name: codeforge-piston
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "2000:2000"
+    # Piston 官方要求挂载 /piston 存储运行时;用命名卷保证数据持久
+    volumes:
+      - codeforge_piston_data:/piston
+
 volumes:
   codeforge_postgres_data:
   codeforge_redis_data:
   codeforge_minio_data:
+  codeforge_piston_data:
 

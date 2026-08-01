@@ -173,7 +173,12 @@ func ValidateWithCases(language, code string, cases []TestCase) (CaseResults, er
 }
 
 // runInternal 是 Run 的内部实现，支持 stdin 注入。
+// 优先走 Piston 容器执行(真隔离);Piston 不可用时降级本地 subprocess(带黑名单)。
 func runInternal(language, code, stdin string) (Result, error) {
+	if r, ok := runPiston(context.Background(), language, code, stdin); ok {
+		return r, nil
+	}
+	// ---- 降级路径:Piston 不可用时的本地执行(黑名单 + 超时,隔离性弱) ----
 	for _, x := range blocked {
 		if strings.Contains(strings.ToLower(code), strings.ToLower(x)) {
 			return Result{Status: "rejected", Stderr: "代码包含沙箱禁止的系统或网络操作"}, nil
