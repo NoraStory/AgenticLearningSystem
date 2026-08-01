@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"codeforge/backend/internal/model"
@@ -37,7 +38,7 @@ var toolPhases = map[string]string{
 	"web_search": "retrieve", "doc_reader": "retrieve", "code_search": "retrieve", "git_helper": "retrieve",
 	"leetcode_fetch": "retrieve", "course_search": "retrieve", "progress_query": "retrieve",
 	"code_execute": "validate", "sql_explain": "analyze", "self_heal": "analyze", "resume_review": "analyze", "project_review": "analyze",
-	"diagram_gen": "generate", "quiz_gen": "generate", "mindmap_gen": "generate",
+	"quiz_gen": "generate",
 }
 
 // toolCapability reports executor registration. Runtime dependencies such as network,
@@ -130,19 +131,15 @@ func (s *Server) executeAgentTool(ctx context.Context, uid string, plan plannedT
 	case "code_execute":
 		return executeCode(in.Message)
 	case "sql_explain":
-		return explainSQL(in.Message)
+		return s.explainSQL(in.Message)
 	case "self_heal":
 		return selfHeal(in.Message)
 	case "resume_review":
 		return s.reviewResume(ctx, in)
 	case "project_review":
 		return s.reviewProject(ctx, in)
-	case "diagram_gen":
-		return toolExecution{Context: generateDiagram(in.Message), Available: true}, nil
 	case "quiz_gen":
 		return toolExecution{Context: generateQuiz(in.Message), Available: true}, nil
-	case "mindmap_gen":
-		return toolExecution{Context: generateMindmap(in.Message), Available: true}, nil
 	default:
 		return toolExecution{Context: plan.Meta.Name + "执行器未注册。", Available: false}, nil
 	}
@@ -264,11 +261,18 @@ func compact(s string) string {
 	return s
 }
 
-func explainSQL(message string) (toolExecution, error) {
+func (s *Server) explainSQL(message string) (toolExecution, error) {
 	sql := extractSQL(message)
 	if sql == "" {
 		return toolExecution{Context: "未检测到 SQL。请提供 SELECT/INSERT/UPDATE/DELETE 或 EXPLAIN 语句。", Available: true}, nil
 	}
+	// 优先真执行计划：EXPLAIN (FORMAT JSON) 只做计划不做查询，无副作用、可安全执行
+	if plan := s.explainPlanJSON(sql); plan != "" {
+		// 提取执行计划关键指标,供模型与用户判断
+		summary := summarizePlan(plan)
+		return toolExecution{Context: "SQL 执行计划分析（PostgreSQL EXPLAIN）：\n- " + summary, Available: true}, nil
+	}
+	// 数据库不可达时回退静态规则
 	upper := strings.ToUpper(sql)
 	advice := []string{}
 	if strings.Contains(upper, "SELECT *") {
@@ -289,8 +293,95 @@ func explainSQL(message string) (toolExecution, error) {
 	if len(advice) == 0 {
 		advice = append(advice, "未发现明显的静态反模式；生产环境仍应使用目标数据库的 EXPLAIN ANALYZE 验证")
 	}
-	return toolExecution{Context: "SQL 静态分析：\n- " + strings.Join(advice, "\n- "), Available: true}, nil
+	return toolExecution{Context: "SQL 静态分析（数据库不可达时回退）：\n- " + strings.Join(advice, "\n- "), Available: true}, nil
 }
+
+// explainPlanJSON 用连接池执行 EXPLAIN (FORMAT JSON)，返回计划 JSON 字符串。
+// 只做计划不执行语句，无副作用；出错返回空串由调用方回退。
+func (s *Server) explainPlanJSON(sql string) string {
+	if s.services == nil || s.services.DB == nil {
+		return ""
+	}
+	var raw string
+	// EXPLAIN (FORMAT JSON) 的输出是 json 列,pgx 对 json 类型 Scan 进 string
+	// 需要驱动支持;用 QueryRow + 显式 ::text 最稳
+	err := s.services.DB.Raw("EXPLAIN (FORMAT JSON) " + sql + "::text").Row().Scan(&raw)
+	if err != nil {
+		return ""
+	}
+	return raw
+}
+
+// summarizePlan 从 EXPLAIN JSON 中提取人可读的关键指标。
+func summarizePlan(plan string) string {
+	var parsed []struct {
+		Plan struct {
+			NodeType       string  `json:"Node Type"`
+			RelationName   string  `json:"Relation Name"`
+			TotalCost      float64 `json:"Total Cost"`
+			StartupCost    float64 `json:"Startup Cost"`
+			ActualRows     *int64  `json:"Actual Rows"`
+			PlannedRows    float64 `json:"Plan Rows"`
+			ScanDirection  string  `json:"Scan Direction"`
+			Filter         string  `json:"Filter"`
+			IndexName      string  `json:"Index Name"`
+			IndexCond      string  `json:"Index Cond"`
+			HashCond       string  `json:"Hash Cond"`
+			JoinType       string  `json:"Join Type"`
+			MergeCond      string  `json:"Merge Cond"`
+			Plans          []struct {
+				NodeType     string `json:"Node Type"`
+				RelationName string `json:"Relation Name"`
+				IndexName    string `json:"Index Name"`
+				IndexCond    string `json:"Index Cond"`
+				Filter       string `json:"Filter"`
+			} `json:"Plans"`
+		} `json:"Plan"`
+	}
+	if json.Unmarshal([]byte(plan), &parsed) != nil || len(parsed) == 0 {
+		return "执行计划生成成功，但解析失败，请直接查看原始计划。\n" + compact(plan)
+	}
+	root := parsed[0].Plan
+	lines := []string{
+		fmt.Sprintf("顶层节点：%s（估算总成本 %.2f，预计返回 %.0f 行）", root.NodeType, root.TotalCost, root.PlannedRows),
+	}
+	if root.RelationName != "" {
+		lines = append(lines, fmt.Sprintf("涉及表：%s", root.RelationName))
+	}
+	if root.IndexName != "" {
+		lines = append(lines, fmt.Sprintf("索引：%s（条件 %s）", root.IndexName, root.IndexCond))
+	}
+	for _, sub := range root.Plans {
+		switch sub.NodeType {
+		case "Seq Scan":
+			lines = append(lines, fmt.Sprintf("⚠️ 顺序扫描：%s（考虑为查询列建索引；%s）", sub.RelationName, condOr(sub.IndexCond, sub.Filter, "无过滤条件")))
+		case "Index Scan":
+			lines = append(lines, fmt.Sprintf("✅ 索引扫描：%s on %s", sub.IndexName, sub.RelationName))
+		case "Index Only Scan":
+			lines = append(lines, fmt.Sprintf("✅ 仅索引扫描：%s on %s", sub.IndexName, sub.RelationName))
+		case "Bitmap Heap Scan":
+			lines = append(lines, fmt.Sprintf("🔶 位图扫描：%s（%s）", sub.RelationName, condOr(sub.IndexCond, sub.Filter, "")))
+		case "Sort":
+			lines = append(lines, "🔶 排序节点：结果集需要排序，数据量大时考虑索引避免")
+		case "Nested Loop", "Hash Join", "Merge Join":
+			lines = append(lines, fmt.Sprintf("🔗 JOIN：%s（%s）", sub.NodeType, condOr(sub.IndexCond, sub.Filter, "")))
+		}
+	}
+	if root.NodeType == "Seq Scan" {
+		lines = append(lines, fmt.Sprintf("⚠️ 顶层就是顺序扫描：%s（考虑建索引）", condOr(root.IndexCond, root.Filter, "查询可能全表扫描")))
+	}
+	return strings.Join(lines, "\n- ")
+}
+
+func condOr(vals ...string) string {
+	for _, v := range vals {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func extractSQL(message string) string {
 	for _, match := range fencedCodePattern.FindAllStringSubmatch(message, -1) {
 		if strings.Contains(strings.ToLower(match[1]), "sql") {
@@ -431,23 +522,65 @@ func (s *Server) reviewResume(ctx context.Context, in agentChatInput) (toolExecu
 	if strings.TrimSpace(text) == "" {
 		return toolExecution{Context: "请上传简历文本或粘贴简历内容。", Available: true}, nil
 	}
+	// 复用简历模块的真实 LLM 分析（评分/关键词匹配/优缺点/建议），不再输出模板话术
+	if s.llm.Enabled() {
+		analysis := s.llmAnalyzeResume(text)
+		if fb, _ := analysis["fallback"].(bool); !fb {
+			score, _ := analysis["score"].(float64)
+			ats, _ := analysis["atsScore"].(float64)
+			strengths, _ := analysis["strengths"].([]any)
+			weaknesses, _ := analysis["weaknesses"].([]any)
+			suggestions, _ := analysis["suggestions"].([]any)
+			var b strings.Builder
+			fmt.Fprintf(&b, "简历分析（AI）：\n- 综合评分 %d/100，ATS 匹配度 %d/100\n", int(score), int(ats))
+			b.WriteString("- 优势：")
+			for i, s := range strengths {
+				if str, ok := s.(string); ok {
+					if i > 0 {
+						b.WriteString("；")
+					}
+					b.WriteString(str)
+				}
+			}
+			b.WriteString("\n- 不足：")
+			for i, w := range weaknesses {
+				if str, ok := w.(string); ok {
+					if i > 0 {
+						b.WriteString("；")
+					}
+					b.WriteString(str)
+				}
+			}
+			b.WriteString("\n- 改进建议：")
+			for i, s := range suggestions {
+				if str, ok := s.(string); ok {
+					if i > 0 {
+						b.WriteString("；")
+					}
+					b.WriteString(str)
+				}
+			}
+			return toolExecution{Context: b.String(), Available: true}, nil
+		}
+	}
+	// LLM 不可用或解析失败时回退基础分析
 	return toolExecution{Context: fmt.Sprintf("简历初筛：共 %d 字；建议检查联系方式、项目成果量化、技术栈关键词与岗位匹配度。\n%s", len([]rune(text)), compact(text)), Available: true}, nil
 }
+
 func (s *Server) reviewProject(ctx context.Context, in agentChatInput) (toolExecution, error) {
 	git, _ := gitSummary(ctx, "")
 	code, _ := s.searchCode(ctx, in)
-	return toolExecution{Context: "项目审阅：\n" + git.Context + "\n" + code.Context, Available: true}, nil
-}
-func generateDiagram(message string) string {
-	topic := compact(strings.TrimSpace(message))
-	lower := strings.ToLower(topic)
-	if containsAny(lower, "\u524d\u7f00\u548c", "prefix sum", "scan", "hillis-steele", "\u53cc\u7f13\u51b2") {
-		return "Mermaid \u6d41\u7a0b\u56fe\uff1a\n```mermaid\nflowchart TD\n  A[\u521d\u59cb\u53168\u5143\u7d20\u6570\u7ec4\uff1a1 2 3 4 5 6 7 8] --> B[\u8bbe\u7f6e step = 1\uff0c\u6e90\u7f13\u51b2\u533a\u53d1\u76ee\u6807\u7f13\u51b2\u533a]\n  B --> C{step < n ?}\n  C -->|\u662f| D[\u6bcf\u4e2a\u7ebf\u7a0b\u8bfb\u53d6 src[i] \u548c src[i-step]]\n  D --> E[\u5199\u5165 dst[i]\uff1a\u6709\u524d\u7f6e\u5143\u7d20\u5219\u76f8\u52a0\uff0c\u5426\u5219\u76f4\u63a5\u590d\u5236]\n  E --> F[\u540c\u6b65\u5e76\u4ea4\u6362 src \u548c dst \u53cc\u7f13\u51b2\u533a]\n  F --> G[step = step * 2]\n  G --> C\n  C -->|\u5426| H[\u8f93\u51fa\u524d\u7f00\u548c\u7ed3\u679c]\n```"
+	base := "项目审阅：\n" + git.Context + "\n" + code.Context
+	// 附件里有代码时，用 LLM 做真实结构点评；无 LLM 时保留静态摘要
+	if s.llm.Enabled() && strings.Contains(code.Context, "代码检索结果") {
+		answer, err := s.llm.Chat(ctx,
+			"你是资深代码评审专家。基于给出的项目代码片段，输出简洁的项目审阅结论：先一句话概述项目做什么，再列出 3-5 条结构/风险/改进建议（每条一行，用 - 开头）。不要输出无关内容。",
+			truncate(code.Context, 6000))
+		if err == nil && strings.TrimSpace(answer) != "" {
+			return toolExecution{Context: base + "\n\n代码评审（AI）：\n" + strings.TrimSpace(answer), Available: true}, nil
+		}
 	}
-	if topic == "" {
-		topic = "\u5b66\u4e60\u6d41\u7a0b"
-	}
-	return fmt.Sprintf("Mermaid \u6d41\u7a0b\u56fe\uff1a\n```mermaid\nflowchart TD\n  A[\u5f00\u59cb\uff1a%s] --> B[\u5206\u6790\u9700\u6c42]\n  B --> C[\u6267\u884c\u5de5\u5177]\n  C --> D[\u751f\u6210\u7ed3\u679c]\n```", topic)
+	return toolExecution{Context: base, Available: true}, nil
 }
 func generateQuiz(message string) string {
 	topic := compact(strings.TrimSpace(message))
@@ -456,14 +589,6 @@ func generateQuiz(message string) string {
 	}
 	return fmt.Sprintf("测验草案（%s）：\n1. 请解释核心概念及适用场景。\n2. 给出一个最小代码示例。\n3. 说明一个常见边界条件，并给出改进方案。", topic)
 }
-func generateMindmap(message string) string {
-	topic := compact(strings.TrimSpace(message))
-	if topic == "" {
-		topic = "学习主题"
-	}
-	return fmt.Sprintf("Mermaid 思维导图：\n```mermaid\nmindmap\n  root((%s))\n    核心概念\n    示例\n    常见错误\n    练习与复盘\n```", topic)
-}
-
 type searxResponse struct {
 	Results []struct {
 		Title   string `json:"title"`
@@ -471,6 +596,41 @@ type searxResponse struct {
 		Content string `json:"content"`
 		Engine  string `json:"engine"`
 	} `json:"results"`
+}
+
+// searchCache 是搜索结果的内存缓存：key = provider+query,10 分钟过期。
+// 避免同一关键词短时间内重复打 SearXNG。
+var searchCache struct {
+	mu    sync.Mutex
+	items map[string]searchCacheItem
+}
+
+type searchCacheItem struct {
+	result    string
+	expiresAt time.Time
+}
+
+func searchCacheGet(key string) (string, bool) {
+	searchCache.mu.Lock()
+	defer searchCache.mu.Unlock()
+	item, ok := searchCache.items[key]
+	if !ok {
+		return "", false
+	}
+	if time.Now().After(item.expiresAt) {
+		delete(searchCache.items, key)
+		return "", false
+	}
+	return item.result, true
+}
+
+func searchCacheSet(key, result string) {
+	searchCache.mu.Lock()
+	defer searchCache.mu.Unlock()
+	if searchCache.items == nil {
+		searchCache.items = map[string]searchCacheItem{}
+	}
+	searchCache.items[key] = searchCacheItem{result: result, expiresAt: time.Now().Add(10 * time.Minute)}
 }
 
 // searchWeb selects the configured provider. SearXNG is the default because it
@@ -484,22 +644,34 @@ func (s *Server) searchWeb(ctx context.Context, q string) (string, error) {
 	if provider == "" {
 		provider = "searxng"
 	}
+	cacheKey := provider + ":" + q
+	if cached, ok := searchCacheGet(cacheKey); ok {
+		return cached, nil
+	}
+	var result string
+	var err error
 	switch provider {
 	case "searxng":
-		result, err := s.searxSearch(ctx, q)
+		result, err = s.searxSearch(ctx, q)
 		if err == nil {
+			searchCacheSet(cacheKey, result)
 			return result, nil
 		}
 		// SearXNG 失败后用 Wikipedia 回退（用独立 context，不受原超时影响）
 		if fallback, fallbackErr := wikiSearch(context.Background(), q); fallbackErr == nil {
+			searchCacheSet(cacheKey, fallback)
 			return fallback, nil
 		}
 		return "", fmt.Errorf("SearXNG 搜索失败：%w", err)
 	case "duckduckgo":
-		return duckSearch(ctx, q)
+		result, err = duckSearch(ctx, q)
 	default:
 		return "", fmt.Errorf("不支持的搜索提供商：%s", provider)
 	}
+	if err == nil {
+		searchCacheSet(cacheKey, result)
+	}
+	return result, err
 }
 
 func (s *Server) searxSearch(ctx context.Context, q string) (string, error) {
@@ -659,21 +831,7 @@ func wikiSearch(ctx context.Context, q string) (string, error) {
 		}
 	}
 	if err != nil {
-		// Some Windows environments block Go's TLS transport while curl.exe can
-		// still reach the same public endpoint. Keep this fallback constrained to
-		// the fixed Wikipedia URL and a short timeout.
-		cmd := exec.CommandContext(ctx, "curl.exe", "-fsSL", "--max-time", "6", u)
-		data, curlErr := cmd.Output()
-		if curlErr != nil {
-			cmd = exec.CommandContext(ctx, "curl", "-fsSL", "--max-time", "6", u)
-			data, curlErr = cmd.Output()
-		}
-		if curlErr != nil {
-			return "", err
-		}
-		if decodeErr := json.Unmarshal(data, &out); decodeErr != nil {
-			return "", decodeErr
-		}
+		return "", err
 	}
 	parts := []string{}
 	for _, item := range out.Query.Search {

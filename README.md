@@ -150,25 +150,23 @@ SEARCH_BASE_URL=http://localhost:8081
 ```
 
 <details>
-<summary><b>🛠 内置工具清单（15 个）</b></summary>
+<summary><b>🛠 内置工具清单（13 个）</b></summary>
 
 | 工具 | 分类 | 功能 |
 |------|------|------|
-| `web_search` | 信息获取 | SearXNG 联网搜索，Wikipedia 回退 |
+| `web_search` | 信息获取 | SearXNG 联网搜索，Wikipedia 回退（10 分钟结果缓存） |
 | `doc_reader` | 信息获取 | 图片 / 文本 / 代码附件解析 |
 | `code_search` | 开发工具 | 附件或工作区中查找定义与引用 |
 | `git_helper` | 开发工具 | 读取工作区状态，生成提交说明 |
-| `code_execute` | 开发工具 | 受限沙箱中运行代码 |
+| `code_execute` | 开发工具 | Piston 容器隔离执行（不可用时降级本地沙箱） |
 | `self_heal` | 开发工具 | 分析错误并提出最小修复 |
-| `sql_explain` | 开发工具 | SQL 静态分析 + 索引优化建议 |
-| `diagram_gen` | 内容生成 | Mermaid 架构图和流程图 |
-| `mindmap_gen` | 内容生成 | Mermaid 思维导图 |
+| `sql_explain` | 开发工具 | PostgreSQL EXPLAIN 真执行计划分析（数据库不可达时回退静态规则） |
 | `quiz_gen` | 学习工具 | 按知识点生成练习题 |
 | `leetcode_fetch` | 学习工具 | 站内题库检索 |
 | `course_search` | 学习工具 | 站内课程和章节检索 |
 | `progress_query` | 学习工具 | 读取学习进度并生成建议 |
-| `resume_review` | 职业工具 | 简历结构与表达分析 |
-| `project_review` | 职业工具 | 项目源码和完成度分析 |
+| `resume_review` | 职业工具 | AI 简历分析（复用简历模块真实 LLM 分析） |
+| `project_review` | 职业工具 | AI 项目源码评审（LLM 结构/风险/建议） |
 
 </details>
 
@@ -191,7 +189,7 @@ SEARCH_BASE_URL=http://localhost:8081
 |------|------|
 | **后端** | Go 1.26 · Gin 1.10 · GORM 1.25 · JWT v5 · MinIO Go v7 · [Eino 0.9](https://github.com/cloudwego/eino)（Agent 编排） |
 | **前端** | Next.js 16 · React 19 · TypeScript 5 · Tailwind CSS 4 · shadcn/ui · Monaco（代码编辑器） |
-| **基础设施** | PostgreSQL 16 + pgvector（5432）· Redis 7.4（6379）· SearXNG（8081）· MinIO（9000/9001）· Gotenberg docx→PDF（3000）· 全部 Docker 编排 |
+| **基础设施** | PostgreSQL 16 + pgvector（5432）· Redis 7.4（6379）· SearXNG（8081）· MinIO（9000/9001）· Gotenberg docx→PDF（3000）· Piston 代码执行（2000）· 全部 Docker 编排 |
 | **AI** | 火山引擎 Ark / 豆包（Responses API）· docxtpl（用户模板渲染）· shiki（代码高亮）· Mermaid 11（图表） |
 
 ---

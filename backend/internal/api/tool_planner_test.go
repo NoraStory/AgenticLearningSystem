@@ -11,8 +11,8 @@ import (
 )
 
 func TestToolCatalogHasExecutors(t *testing.T) {
-	if len(toolCatalog) != 15 {
-		t.Fatalf("tool catalog count = %d, want 15", len(toolCatalog))
+	if len(toolCatalog) != 13 {
+		t.Fatalf("tool catalog count = %d, want 13", len(toolCatalog))
 	}
 	for _, tool := range toolCatalog {
 		if ok, _ := toolCapability(tool.ID); !ok {
@@ -26,9 +26,9 @@ func TestScheduleToolsByPhaseAndDependency(t *testing.T) {
 		{Meta: toolMeta{ID: "self_heal"}, Phase: "analyze"},
 		{Meta: toolMeta{ID: "doc_reader"}, Phase: "retrieve"},
 		{Meta: toolMeta{ID: "code_execute"}, Phase: "validate"},
-		{Meta: toolMeta{ID: "mindmap_gen"}, Phase: "generate"},
+		{Meta: toolMeta{ID: "quiz_gen"}, Phase: "generate"},
 	})
-	if tools[0].Meta.ID != "doc_reader" || tools[len(tools)-1].Meta.ID != "mindmap_gen" {
+	if tools[0].Meta.ID != "doc_reader" || tools[len(tools)-1].Meta.ID != "quiz_gen" {
 		t.Fatalf("unexpected phase order: %#v", tools)
 	}
 	if len(tools[2].DependsOn) != 1 || tools[2].Meta.ID != "self_heal" || tools[2].DependsOn[0] != "code_execute" {
@@ -45,7 +45,7 @@ func TestExtractCodeAndSQL(t *testing.T) {
 	if sql == "" {
 		t.Fatal("SQL was not extracted")
 	}
-	result, _ := explainSQL(sql)
+	result, _ := (&Server{}).explainSQL(sql)
 	if result.Available == false || result.Context == "" {
 		t.Fatalf("SQL tool unavailable: %#v", result)
 	}

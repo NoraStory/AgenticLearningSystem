@@ -25,14 +25,12 @@ var toolCatalog = []toolMeta{
 	{ID: "leetcode_fetch", Name: "题目获取", Desc: "从站内题库检索并整理算法题", Category: "学习工具", Free: true},
 	{ID: "code_execute", Name: "代码执行", Desc: "在受限沙箱中运行代码", Category: "开发工具", Locked: true, Free: true},
 	{ID: "sql_explain", Name: "SQL 分析", Desc: "静态解释 SQL 并给出索引优化建议", Category: "开发工具", Free: true},
-	{ID: "diagram_gen", Name: "图表生成", Desc: "生成 Mermaid 架构图和流程图", Category: "内容生成", Free: true},
 	{ID: "quiz_gen", Name: "测验生成", Desc: "按知识点生成练习题", Category: "学习工具", Free: true},
 	{ID: "self_heal", Name: "代码自修复", Desc: "分析错误并提出最小修复", Category: "开发工具", Locked: true},
 	{ID: "course_search", Name: "课程检索", Desc: "检索站内课程和章节", Category: "学习工具", Free: true},
 	{ID: "progress_query", Name: "进度查询", Desc: "读取当前用户学习进度并生成建议", Category: "学习工具", Free: true},
 	{ID: "resume_review", Name: "简历审阅", Desc: "分析简历结构与表达", Category: "职业工具"},
 	{ID: "project_review", Name: "项目审阅", Desc: "分析项目源码和任务完成度", Category: "职业工具"},
-	{ID: "mindmap_gen", Name: "思维导图", Desc: "把知识整理为 Mermaid 思维导图", Category: "内容生成", Free: true},
 }
 
 type agentChatInput struct {
