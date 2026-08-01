@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>面向开发者的 AI 智能学习平台</strong><br/>
-  SSE 流式工作流 · 联网搜索 · 代码沙箱 · 对话记忆 · 工具重试
+  SSE 流式工作流 · Eino 模型自主工具决策 · 联网搜索 · 代码沙箱 · 对话记忆 · 工具重试
 </p>
 
 <p align="center">
@@ -81,17 +81,18 @@
 └──────┬───────────┘
        ▼
 ┌──────────────────┐
-│   工具规划         │  关键词匹配 + LLM 判断
-│   (planAgentTools)│  → 联网搜索 / 文档阅读 / 代码执行 / ...
+│   Eino 工具循环    │  模型自主决策工具调用序列（ReAct 风格）
+│  (runAgentLoop)   │  eino AgenticModel（豆包 Ark Responses API）
+│                   │  → 决策 → 执行工具 → 结果回填 → 继续决策
 └──────┬───────────┘
        ▼
 ┌──────────────────┐
-│   工具执行         │  最多 5 次重试，间隔递增（1s→2s→3s→4s→5s）
-│ (executeWithRetry)│  失败后注入上下文，模型用本地知识回答
+│   工具执行         │  15 个内置工具（复用 executeWithRetry 重试）
+│ (executeAgentTool)│  失败后模型诚实告知并用已有知识回答
 └──────┬───────────┘
        ▼
 ┌──────────────────┐
-│   上下文构建       │  对话记忆(12条) + 工具结果 + 当前时间
+│   上下文构建       │  对话记忆(12条) + 当前时间
 └──────┬───────────┘
        ▼
 ┌──────────────────┐
@@ -268,9 +269,10 @@ AgenticLearningSystem/
 │   ├── internal/
 │   │   ├── api/                    #    路由 + 处理器
 │   │   │   ├── agent.go            #      Agent SSE 工作流
+│   │   │   ├── agent_eino.go       #      Eino 工具循环（模型自主决策）
 │   │   │   ├── agent_memory.go     #      对话记忆 + 上下文
 │   │   │   ├── agent_sessions.go   #      会话列表 + 删除
-│   │   │   ├── tool_planner.go     #      工具规划 + 执行器
+│   │   │   ├── tool_planner.go     #      工具执行器 + 重试
 │   │   │   ├── tool_helpers.go     #      重试 + 关键词 + 提示词
 │   │   │   └── server.go           #      路由 + 中间件
 │   │   ├── config/                 #    配置加载

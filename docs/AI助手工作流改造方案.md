@@ -1,6 +1,8 @@
-# AI 助手模块 — 工作流现状审计与开源改造方案
+# AI 助手模块 — 工作流改造方案与实施记录
 
-> 聚焦 `backend/internal/api/agent.go` + `tool_planner.go` + `tool_helpers.go`(手写的"智能路由 + 工具规划 + 顺序执行"链路)与 `frontend/src/app/agent/chat/page.tsx`(工作流展示)。仅方案,不含代码改动。
+> 聚焦 `backend/internal/api/agent.go` + `agent_eino.go` + `tool_planner.go`(手写的"智能路由 + 工具规划 + 顺序执行"链路)与 `frontend/src/app/agent/chat/page.tsx`(工作流展示)。
+>
+> **状态:方案已实施并验证**(2026-08-02)。本文件保留原分析 + 实施结果。
 
 ## 一、现状盘点(已源码级复核)
 
@@ -84,3 +86,35 @@ executeWithRetry(串行) →  eino Tool 组件 + 失败重试回调(现有 execu
 - **stream 语义差异**:现有前端按 token 增量渲染,Eino 流式输出到 SSE 的映射要保证 chunk 顺序与 flush 节奏(现在 `c.Writer.Flush()` 每 token 一次,体验基线不能回退)。
 - **thinking 禁用**:豆包带 reasoning 的模型在 eino `model/ark` 下仍要显式配置 thinking disabled(现网已经吃过坑,见 llm/client.go:86)。
 - **工具描述即契约**:LLM 决策质量取决于 `toolCatalog` 的 desc 是否具体,落地时逐个补齐(如"联网搜索:支持中文关键词,优先返回最新技术资料")。
+
+---
+
+## 四、实施记录(2026-08-02 已完成)
+
+### 落地内容
+
+| 项 | 说明 |
+|---|---|
+| 新文件 | `backend/internal/api/agent_eino.go` — eino 工具循环:`einoToolInfos`(15 工具 → ToolInfo)、`executeEinoTool`(复用 `executeAgentTool` + `executeWithRetry`)、`runAgentLoop`(多轮 决策→执行→回填→流式回答) |
+| agent.go | 删除旧 `planAgentTools` 循环,工具决策完全交给模型;LLM 不可用时回退 `StreamChatWithImages` 直答 |
+| tool_planner.go | 删除 `planAgentTools` / `scheduleTools` 调用侧 / `llmShouldSearch`(108 行),`scheduleTools` 保留(仅测试引用) |
+| 前端 | agent 列表与后端 `routeAgent` 对齐(career/code-review/problem-explain/planner/project/learning-assistant);删除 4 个假协作模式按钮,保留"自动规划"说明 |
+| 依赖 | `cloudwego/eino v0.9.13` + `eino-ext/components/model/agenticark v0.2.4`(经 goproxy.cn,`GOSUMDB=off`) |
+
+### 验证
+
+- `go build ./...` + `go test ./internal/api/` 全过(含 toolCatalog 15 工具测试)
+- curl 实测:web_search 工具调用成功/失败回退、self_heal 决策、模型合理不调工具直接回答,SSE 事件顺序与前端兼容
+- 空工具调用防御:连续 2 轮空调用即停止,不推 SSE
+
+### 遇到的问题
+
+- eino `AgenticMessage` 无独立 tool role → 工具结果以 `FunctionToolResult` block 挂在 user 消息回填
+- thinking 禁用经 `agenticark.WithThinking(&responses.ResponsesThinking{Type: responses.ThinkingType_disabled.Enum()})`(volcengine-go-sdk 类型,非 agenticark 自带 consts)
+- 决策轮与回答轮共用流式 `mod.Stream`,assistant_gen_text 增量实时 `onToken` 保持打字机效果
+
+### 遗留(方案 P2/P3,未做)
+
+- 记忆摘要压缩(超长会话丢前 12 条)、注入 UserProfile 用户画像
+- `WorkflowExecution` 写完整 RunInfo + 前端工作流详情回查
+- 限流 / 沙箱容器化(见功能优化清单 B1/B3)

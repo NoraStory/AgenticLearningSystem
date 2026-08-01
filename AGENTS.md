@@ -75,11 +75,19 @@ corepack pnpm exec next build
 ### 工作流
 
 1. **智能路由**：`routeAgent` 根据关键词 + 对话记忆判断 Agent 类型
-2. **工具规划**：`planAgentTools` 使用关键词匹配 + LLM 判断双重机制
-3. **工具执行**：`executeWithRetry` 最多 5 次重试，间隔递增；失败后注入失败上下文，让模型用本地知识回答
-4. **上下文构建**：`buildConversationPrompt` 拼入对话记忆 + 工具结果
-5. **LLM 流式回答**：`StreamChatWithImages` SSE token 实时推送
+2. **Eino 工具循环**：`agent_eino.go` 的 `runAgentLoop` 用 eino AgenticModel（豆包 Ark Responses API）让**模型自主决策工具调用序列**——多轮「决策 → 执行 → 结果回填 → 再决策」，替代旧的关键词规划器（`planAgentTools`/`llmShouldSearch` 已删除）
+3. **工具执行**：15 个内置工具包装成 eino `ToolInfo`（`einoToolInfos`），执行复用 `executeAgentTool` + `executeWithRetry`（最多 5 次重试）；失败后模型诚实告知并用已有知识回答
+4. **上下文构建**：`buildConversationPrompt` 拼入对话记忆 + 当前时间
+5. **LLM 流式回答**：eino Stream 增量实时推送 SSE token，前端逐字渲染
 6. **持久化**：用户消息 + 助手回答 + 工作流 JSON 全部入库
+
+### Eino 工具循环要点
+
+- 工具注册：`einoToolInfos()` 把 `toolCatalog` 转成 eino `ToolInfo`（JSON Schema 参数），描述复用 `Desc` 字段
+- 工具结果回填：eino `AgenticMessage` 无独立 tool role，结果以 `FunctionToolResult` block 挂在 user 消息里回填
+- **每轮禁用 thinking**：`agenticark.WithThinking(&responses.ResponsesThinking{Type: responses.ThinkingType_disabled.Enum()})`，防止 reasoning 占满输出
+- 防御：空名称工具调用过滤 + 连续空轮止损，避免模型异常死循环
+- 依赖：`github.com/cloudwego/eino` + `eino-ext/components/model/agenticark`（Apache-2.0）
 
 ### 对话记忆
 
@@ -96,7 +104,7 @@ corepack pnpm exec next build
 
 - 默认未配置模型时，Agent 使用本地降级回退，系统仍可运行。
 - 配置 Ark（豆包）模型：复制 `.env.example` 为 `.env`，填入 `ARK_API_KEY` / `ARK_MODEL` / `ARK_BASE_URL`。
-- `backend/internal/llm/client.go` 在配置完成后自动调用 Ark Chat Completions / Responses API。
+- `backend/internal/llm/client.go`（Chat Completions / Responses 直答路径）与 `agent_eino.go`（eino 工具循环路径）在配置完成后自动调用 Ark。
 - `MaxOutputTokens` 为 4096（图片 2048），temperature 0.7，确保回答充分详细。
 
 ## 简历模块（docx 模板 + AI 优化）
