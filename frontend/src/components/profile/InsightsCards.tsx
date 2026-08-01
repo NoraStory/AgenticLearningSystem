@@ -27,10 +27,17 @@ export default function InsightsCards({ insights }: { insights: Insights | null 
   if (!insights) {
     return <p className="text-sm text-muted-foreground/60 py-2">开始学习后，这里会生成你的专属洞察</p>;
   }
+  const data: Insights = {
+    behavior_distribution: insights.behavior_distribution ?? [],
+    time_slot_preference: insights.time_slot_preference ?? [],
+    interest_distribution: insights.interest_distribution ?? [],
+    activity_trend: insights.activity_trend ?? [],
+    consistency: insights.consistency ?? { total_minutes: 0, avg_daily_minutes: 0, active_days_7: 0, best_weekday: '暂无数据' },
+  };
   const hasData =
-    insights.behavior_distribution.length > 0 ||
-    insights.time_slot_preference.some((h) => h.minutes > 0) ||
-    insights.interest_distribution.length > 0;
+    data.behavior_distribution.length > 0 ||
+    data.time_slot_preference.some((h) => h.minutes > 0) ||
+    data.interest_distribution.length > 0;
   if (!hasData) {
     return <p className="text-sm text-muted-foreground/60 py-2">开始学习后，这里会生成你的专属洞察</p>;
   }
@@ -40,20 +47,20 @@ export default function InsightsCards({ insights }: { insights: Insights | null 
       {/* 行为分布 */}
       <div className="bg-surface rounded-lg p-4">
         <h4 className="text-xs font-semibold text-foreground mb-3">近 30 天行为分布</h4>
-        {insights.behavior_distribution.length === 0 ? (
+        {data.behavior_distribution.length === 0 ? (
           <p className="text-xs text-muted-foreground/60">暂无行为数据</p>
         ) : (
           <ResponsiveContainer width="100%" height={140}>
             <PieChart>
               <Pie
-                data={insights.behavior_distribution}
+                data={data.behavior_distribution}
                 dataKey="value"
                 nameKey="name"
                 innerRadius={30}
                 outerRadius={55}
                 paddingAngle={2}
               >
-                {insights.behavior_distribution.map((_, i) => (
+                {data.behavior_distribution.map((_, i) => (
                   <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                 ))}
               </Pie>
@@ -67,7 +74,7 @@ export default function InsightsCards({ insights }: { insights: Insights | null 
       <div className="bg-surface rounded-lg p-4">
         <h4 className="text-xs font-semibold text-foreground mb-3">学习时段偏好（24h）</h4>
         <ResponsiveContainer width="100%" height={140}>
-          <BarChart data={insights.time_slot_preference}>
+          <BarChart data={data.time_slot_preference}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis dataKey="hour" tick={{ fontSize: 9 }} interval={3} />
             <YAxis tick={{ fontSize: 9 }} />
@@ -80,11 +87,11 @@ export default function InsightsCards({ insights }: { insights: Insights | null 
       {/* 兴趣分布 */}
       <div className="bg-surface rounded-lg p-4">
         <h4 className="text-xs font-semibold text-foreground mb-3">兴趣方向（浏览/做题）</h4>
-        {insights.interest_distribution.length === 0 ? (
+        {data.interest_distribution.length === 0 ? (
           <p className="text-xs text-muted-foreground/60">暂无浏览记录</p>
         ) : (
           <div className="space-y-2">
-            {insights.interest_distribution.slice(0, 5).map((it, i) => (
+            {data.interest_distribution.slice(0, 5).map((it, i) => (
               <div key={it.category} className="flex items-center gap-2">
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
@@ -102,10 +109,10 @@ export default function InsightsCards({ insights }: { insights: Insights | null 
       <div className="bg-surface rounded-lg p-4">
         <h4 className="text-xs font-semibold text-foreground mb-3">学习一致性</h4>
         <div className="space-y-1.5 text-xs text-muted-foreground">
-          <p>近 30 天累计学习 {Math.round(insights.consistency.total_minutes / 60)} 小时</p>
-          <p>日均学习 {Math.round(insights.consistency.avg_daily_minutes)} 分钟</p>
-          <p>近 7 天活跃 {insights.consistency.active_days_7} 天</p>
-          <p>最常学习：{insights.consistency.best_weekday}</p>
+          <p>近 30 天累计学习 {Math.round(data.consistency.total_minutes / 60)} 小时</p>
+          <p>日均学习 {Math.round(data.consistency.avg_daily_minutes)} 分钟</p>
+          <p>近 7 天活跃 {data.consistency.active_days_7} 天</p>
+          <p>最常学习：{data.consistency.best_weekday}</p>
         </div>
       </div>
     </div>

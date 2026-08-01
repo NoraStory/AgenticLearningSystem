@@ -58,6 +58,12 @@ func (s *Server) agentInsights(c *gin.Context) {
 		FROM user_activities
 		WHERE user_id = ? AND type = 'course_view' AND metadata->>'category' IS NOT NULL
 		GROUP BY 1 ORDER BY cnt DESC`, uid).Scan(&interests)
+	if interests == nil {
+		interests = []struct {
+			Category string
+			Cnt      int
+		}{}
+	}
 
 	// ---- 4. 近 14 天趋势（每日事件数 + 学习时长）----
 	type dayAct struct {
