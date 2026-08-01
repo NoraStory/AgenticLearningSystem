@@ -40,8 +40,9 @@ func (s *Server) register(c *gin.Context) {
 		return
 	}
 	access, _ := s.signToken(u.ID, 24*time.Hour)
-	refresh, _ := s.signToken(u.ID, 30*24*time.Hour)
-	s.services.DB.Create(&model.RefreshToken{ID: uuid.NewString(), UserID: u.ID, TokenHash: tokenHash(refresh), ExpiresAt: time.Now().Add(30 * 24 * time.Hour)})
+	// 7 天免密登录:refresh token 有效期与 DB 记录一致
+	refresh, _ := s.signToken(u.ID, 7*24*time.Hour)
+	s.services.DB.Create(&model.RefreshToken{ID: uuid.NewString(), UserID: u.ID, TokenHash: tokenHash(refresh), ExpiresAt: time.Now().Add(7 * 24 * time.Hour)})
 	success(c, gin.H{"user_id": u.ID, "username": u.Username, "token": access, "refresh_token": refresh, "expires_in": 86400})
 }
 func (s *Server) login(c *gin.Context) {
@@ -62,8 +63,8 @@ func (s *Server) login(c *gin.Context) {
 		}
 	}
 	access, _ := s.signToken(u.ID, 24*time.Hour)
-	refresh, _ := s.signToken(u.ID, 30*24*time.Hour)
-	s.services.DB.Create(&model.RefreshToken{ID: uuid.NewString(), UserID: u.ID, TokenHash: tokenHash(refresh), ExpiresAt: time.Now().Add(30 * 24 * time.Hour)})
+	refresh, _ := s.signToken(u.ID, 7*24*time.Hour)
+	s.services.DB.Create(&model.RefreshToken{ID: uuid.NewString(), UserID: u.ID, TokenHash: tokenHash(refresh), ExpiresAt: time.Now().Add(7 * 24 * time.Hour)})
 	success(c, gin.H{"user_id": u.ID, "username": u.Username, "token": access, "refresh_token": refresh, "expires_in": 86400})
 }
 func (s *Server) refresh(c *gin.Context) {
