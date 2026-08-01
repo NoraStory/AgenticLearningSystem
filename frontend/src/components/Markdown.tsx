@@ -4,44 +4,55 @@ import { memo, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import type { Highlighter } from 'shiki';
 
-// rehype-pretty-code 是异步插件,需要先初始化 shiki highlighter
-async function loadRehypePrettyCode() {
-  const { createHighlighter } = await import('shiki');
-  const highlighter = await createHighlighter({
-    themes: ['github-dark', 'github-light'],
-    langs: ['ts', 'tsx', 'js', 'jsx', 'go', 'python', 'cpp', 'c', 'rust', 'sql', 'bash', 'json', 'yaml', 'html', 'css'],
-  });
-  const { default: rehypePrettyCode } = await import('rehype-pretty-code');
-  return rehypePrettyCode({
-    theme: 'github-dark',
-    keepBackground: false,
-    getHighlighter: async () => highlighter,
-  });
+// shiki 高亮器：懒加载一次，多个 Markdown 组件实例复用
+let highlighterPromise: Promise<Highlighter> | null = null;
+function getHighlighter() {
+  if (!highlighterPromise) {
+    highlighterPromise = import('shiki').then(({ createHighlighter }) =>
+      createHighlighter({
+        themes: ['github-dark'],
+        langs: ['ts', 'tsx', 'js', 'jsx', 'go', 'python', 'cpp', 'c', 'rust', 'sql', 'bash', 'json', 'yaml', 'html', 'css', 'plaintext'],
+      }),
+    );
+  }
+  return highlighterPromise;
 }
 
-type RehypePlugin = Awaited<ReturnType<typeof loadRehypePrettyCode>>;
-
-const Markdown = memo(function Markdown({ children }: { children: string }) {
-  const [rehypePlugin, setRehypePlugin] = useState<RehypePlugin | null>(null);
+// 代码块：用 shiki 高亮渲染。未加载完成时先显示普通文本。
+function CodeBlock({ className, children }: { className?: string; children: string }) {
+  const [html, setHtml] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    loadRehypePrettyCode()
-      .then((plugin) => {
-        if (!cancelled) setRehypePlugin(plugin);
+    const lang = (className || '').replace(/^language-/, '') || 'plaintext';
+    getHighlighter()
+      .then((highlighter) => {
+        if (cancelled) return;
+        let code = highlighter.codeToHtml(children, { lang, theme: 'github-dark' });
+        // 去掉外层 <pre> 包裹，样式由外层 pre 控制
+        code = code.replace(/^<pre[^>]*>/, '').replace(/<\/pre>$/, '');
+        setHtml(code);
       })
-      .catch(() => undefined); // 高亮加载失败时退化为普通 markdown
+      .catch(() => undefined); // 高亮失败时显示普通文本
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [children, className]);
 
+  if (html) {
+    return <code className="block" dangerouslySetInnerHTML={{ __html: html }} />;
+  }
+  return <code className="block bg-muted/60 rounded-lg p-4 overflow-x-auto text-[13px] leading-relaxed whitespace-pre">{children}</code>;
+}
+
+const Markdown = memo(function Markdown({ children }: { children: string }) {
   return (
     <div className="text-sm leading-relaxed">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw, ...(rehypePlugin ? [rehypePlugin] : [])] as never}
+        rehypePlugins={[rehypeRaw] as never}
         components={{
           h1: (props) => <h1 className="text-xl font-bold mt-4 mb-2" {...props} />,
           h2: (props) => <h2 className="text-lg font-bold mt-3 mb-2" {...props} />,
@@ -70,14 +81,12 @@ const Markdown = memo(function Markdown({ children }: { children: string }) {
             <blockquote className="border-l-4 border-primary/40 pl-3 my-2 text-muted-foreground italic" {...props} />
           ),
           code: (props) => {
-            const { className } = props as { className?: string };
+            const { className, children: codeChildren } = props as { className?: string; children: string };
             const isBlock = /language-/.test(className || '');
             if (isBlock) {
-              return (
-                <code className="block bg-muted/60 rounded-lg p-4 overflow-x-auto text-[13px] leading-relaxed" {...props} />
-              );
+              return <CodeBlock className={className}>{String(codeChildren)}</CodeBlock>;
             }
-            return <code className="px-1.5 py-0.5 bg-muted/60 rounded text-[13px] font-mono" {...props} />;
+            return <code className="px-1.5 py-0.5 bg-muted/60 rounded text-[13px] font-mono">{codeChildren}</code>;
           },
           pre: (props) => (
             <pre className="my-3 rounded-lg overflow-x-auto p-0 bg-transparent" {...props} />
