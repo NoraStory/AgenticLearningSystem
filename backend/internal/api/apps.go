@@ -69,7 +69,22 @@ func (s *Server) resumeAnalyze(c *gin.Context) {
 		fail(c, 404, 404, "简历文件不存在")
 		return
 	}
-	analysis := gin.H{"score": 78, "atsScore": 74, "keywordMatch": []gin.H{{"keyword": "React", "found": true}, {"keyword": "TypeScript", "found": true}, {"keyword": "Node.js", "found": true}, {"keyword": "Python", "found": true}, {"keyword": "Docker", "found": false}, {"keyword": "云服务", "found": false}, {"keyword": "Git", "found": true}, {"keyword": "SQL", "found": true}}, "strengths": []string{"经历结构清晰，关键职责可快速定位", "技术栈与软件开发岗位匹配", "项目描述包含一定的结果信息"}, "weaknesses": []string{"部分成果缺少量化指标", "项目技术难点与个人贡献区分不够", "缺少针对目标岗位的关键词"}, "suggestions": []string{"使用 STAR 法则重写最近两段项目经历", "补充性能、用户量、成本或效率等量化结果", "按编程语言、框架、数据库、工程工具重组技能", "根据目标职位描述补充 Docker 与云服务关键词"}, "overall_score": 78, "dimensions": gin.H{"content_completeness": 82, "format_layout": 80, "keyword_match": 74, "professionalism": 79, "expression_clarity": 76}, "highlights": []string{"技术经历完整", "项目方向明确"}}
+	// 已分析过(且是有效结果)直接复用,避免重复调用慢速 LLM
+	if r.AnalysisJSON != "" && r.AnalysisJSON != "{}" && r.AnalysisJSON != "null" {
+		var cached gin.H
+		if json.Unmarshal([]byte(r.AnalysisJSON), &cached) == nil {
+			if fb, ok := cached["fallback"].(bool); !ok || !fb {
+				success(c, gin.H{"success": true, "analysis": cached, "cached": true})
+				return
+			}
+		}
+	}
+	text, err := s.extractResumeText(c, r.ObjectKey, r.Filename)
+	if err != nil {
+		fail(c, 422, 422, err.Error())
+		return
+	}
+	analysis := s.llmAnalyzeResume(text)
 	raw, _ := json.Marshal(analysis)
 	s.services.DB.Model(&r).Update("analysis_json", string(raw))
 	success(c, gin.H{"success": true, "analysis": analysis})
@@ -94,34 +109,85 @@ func (s *Server) resumeOptimize(c *gin.Context) {
 		fail(c, 404, 404, "模板不存在")
 		return
 	}
-	sections := make([]gin.H, 0, len(t.Sections))
-	var text strings.Builder
-	for _, section := range t.Sections {
-		content := optimizedSection(section)
-		sections = append(sections, gin.H{"title": section, "content": content})
-		text.WriteString("## " + section + "\n" + content + "\n\n")
+	text, err := s.extractResumeText(c, r.ObjectKey, r.Filename)
+	if err != nil {
+		fail(c, 422, 422, err.Error())
+		return
 	}
-	s.services.DB.Model(&r).Update("optimized_content", text.String())
-	success(c, gin.H{"success": true, "optimized_content": gin.H{"sections": sections, "template_used": t.ID, "text": text.String()}})
-}
-func optimizedSection(section string) string {
-	m := map[string]string{"基本信息": "张三｜软件工程师｜上海｜zhangsan@example.com｜github.com/example", "个人简介": "5 年软件开发经验，擅长 TypeScript、Python 与云原生工程。能够从业务目标出发完成架构设计、性能优化和团队协作。", "技能清单": "编程语言：TypeScript、Python、Go、SQL\n框架：React、Next.js、Gin\n工程工具：Git、Docker、CI/CD、PostgreSQL、Redis", "技术栈": "前端：React、Next.js、TypeScript、Tailwind CSS\n后端：Go、Gin、PostgreSQL、Redis\n工程：Docker、GitHub Actions、监控与日志", "工作经历": "高级软件工程师｜示例科技｜2022.03 至今\n- 主导核心平台重构，接口平均延迟降低 42%\n- 建立组件库与代码审查规范，交付效率提升 30%\n- 指导 3 名工程师完成复杂模块交付", "项目经验": "CodeForge 学习平台｜技术负责人\n- 设计前后端分离架构与 Agent 工作流\n- 实现课程、题库、代码执行、简历与项目分析闭环\n- 通过缓存和索引优化将主要查询稳定在 100ms 内", "教育背景": "示例大学｜计算机科学与技术｜本科｜2016-2020"}
-	if v := m[section]; v != "" {
-		return v
+	// 模板章节结构(内置模板 sections 存的是章节名数组,自定义模板同样)
+	tplSections := t.Sections
+	if len(tplSections) == 0 {
+		tplSections = []string{"基本信息", "技能清单", "工作经历", "项目经验", "教育背景"}
 	}
-	return "请根据目标岗位补充可验证、可量化的 " + section + " 内容。"
+	optimized, dropped, err := s.llmOptimizeResume(text, tplSections, in.OptimizationDirections)
+	if err != nil {
+		optimized = text
+	}
+	// 按模板章节组织输出(展示用;前端实际取 text 全文)
+	sections := make([]gin.H, 0, len(tplSections))
+	var b strings.Builder
+	b.WriteString(optimized + "\n")
+	for _, section := range tplSections {
+		sections = append(sections, gin.H{"title": section, "content": ""})
+		b.WriteString("## " + section + "\n\n")
+	}
+	_ = dropped
+	s.services.DB.Model(&r).Update("optimized_content", b.String())
+	success(c, gin.H{"success": true, "fallback": err != nil, "dropped_count": dropped, "optimized_content": gin.H{"sections": sections, "template_used": t.ID, "text": b.String()}})
 }
 func (s *Server) resumeExport(c *gin.Context) {
 	var in struct {
-		Format  string `json:"format"`
-		Content any    `json:"content"`
+		Format     string `json:"format"`
+		TemplateID string `json:"template_id"`
+		Content    any    `json:"content"`
 	}
 	if c.ShouldBindJSON(&in) != nil {
 		fail(c, 400, 400, "导出参数无效")
 		return
 	}
+	format := strings.ToLower(in.Format)
+	if format == "" {
+		format = "pdf"
+	}
 	raw := contentString(in.Content)
-	switch strings.ToLower(in.Format) {
+
+	// 指定了已注册模板:docx 走 docxtpl 渲染,PDF 再经 LibreOffice 转换,保留模板样式
+	if in.TemplateID != "" {
+		var t model.ResumeTemplate
+		if s.services.DB.First(&t, "id = ?", in.TemplateID).Error == nil && t.Status == "ready" && t.RegisteredPath != "" {
+			sections, err := s.exportSectionsFromContent(in.Content)
+			if err != nil {
+				fail(c, 400, 400, "导出内容格式无效")
+				return
+			}
+			sections = alignTemplateSections(sections, t.Sections)
+			data, err := s.renderDocxTemplate(c.Request.Context(), t.RegisteredPath, sections)
+			if err != nil {
+				fail(c, 500, 1010, "DOCX 渲染失败: "+err.Error())
+				return
+			}
+			switch format {
+			case "docx":
+				c.Header("Content-Disposition", "attachment; filename=resume.docx")
+				c.Data(200, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data)
+				return
+			case "pdf":
+				pdfData, err := s.docxConverter().convertDocxToPDF(c.Request.Context(), data)
+				if err != nil {
+					// 转换服务不可用时回退文本版 PDF
+					c.Header("Content-Disposition", "attachment; filename=resume.pdf")
+					c.Data(200, "application/pdf", makePDF(raw))
+					return
+				}
+				c.Header("Content-Disposition", "attachment; filename=resume.pdf")
+				c.Data(200, "application/pdf", pdfData)
+				return
+			}
+			// 其他格式(html)走下面通用分支
+		}
+	}
+
+	switch format {
 	case "html":
 		c.Header("Content-Disposition", "attachment; filename=resume.html")
 		c.Data(200, "text/html; charset=utf-8", []byte("<!doctype html><html><meta charset=utf-8><body><pre>"+html.EscapeString(raw)+"</pre></body></html>"))
@@ -138,6 +204,119 @@ func (s *Server) resumeExport(c *gin.Context) {
 		c.Header("Content-Disposition", "attachment; filename=resume.pdf")
 		c.Data(200, "application/pdf", data)
 	}
+}
+
+// exportSectionsFromContent 从导出请求的 content 中提取 sections 数据(docxtpl 渲染用)。
+func (s *Server) exportSectionsFromContent(content any) ([]map[string]any, error) {
+	// 前端可能传 {sections: [...]} 或 {optimized_content: {sections: [...]}} 或 {text: "..."}
+	raw, err := json.Marshal(content)
+	if err != nil {
+		return nil, err
+	}
+	var probe map[string]any
+	if json.Unmarshal(raw, &probe) != nil {
+		return []map[string]any{{"title": "内容", "items": []string{contentString(content)}}}, nil
+	}
+	if secs, ok := probe["sections"].([]any); ok {
+		return toSectionMaps(secs)
+	}
+	if oc, ok := probe["optimized_content"].(map[string]any); ok {
+		if secs, ok := oc["sections"].([]any); ok {
+			return toSectionMaps(secs)
+		}
+	}
+	if text, ok := probe["text"].(string); ok {
+		return sectionsFromMarkdown(text), nil
+	}
+	return []map[string]any{{"title": "内容", "items": []string{contentString(content)}}}, nil
+}
+
+// alignTemplateSections 按模板章节名对齐 sections:模板有而 content 没有的章节补空 items;
+// content 有而模板没有的章节忽略(避免 docxtpl 对占位符越界抛错)。
+func alignTemplateSections(content []map[string]any, templateSectionNames []string) []map[string]any {
+	byTitle := map[string][]string{}
+	for _, sec := range content {
+		title, _ := sec["title"].(string)
+		items := []string{}
+		if raw, ok := sec["items"].([]any); ok {
+			for _, it := range raw {
+				if s, ok := it.(string); ok {
+					items = append(items, s)
+				}
+			}
+		} else if raw, ok := sec["items"].([]string); ok {
+			items = raw
+		}
+		if title != "" {
+			byTitle[title] = items
+		}
+	}
+	out := make([]map[string]any, 0, len(templateSectionNames))
+	for _, title := range templateSectionNames {
+		items, ok := byTitle[title]
+		if !ok {
+			items = []string{}
+		}
+		out = append(out, map[string]any{"title": title, "items": items})
+	}
+	return out
+}
+
+// sectionsFromMarkdown 把 "## 章节名\n条目" 形式的 markdown 拆成 sections 结构。
+func sectionsFromMarkdown(text string) []map[string]any {
+	sections := []map[string]any{}
+	var current string
+	var items []string
+	flush := func() {
+		if current != "" {
+			sections = append(sections, map[string]any{"title": current, "items": items})
+		}
+	}
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "##") {
+			flush()
+			current = strings.TrimSpace(strings.TrimPrefix(line, "##"))
+			items = []string{}
+		} else if strings.HasPrefix(line, "#") {
+			flush()
+			current = strings.TrimSpace(strings.TrimLeft(line, "#"))
+			items = []string{}
+		} else {
+			items = append(items, line)
+		}
+	}
+	flush()
+	if len(sections) == 0 {
+		sections = append(sections, map[string]any{"title": "内容", "items": []string{text}})
+	}
+	return sections
+}
+
+func toSectionMaps(secs []any) ([]map[string]any, error) {
+	out := make([]map[string]any, 0, len(secs))
+	for _, sec := range secs {
+		m, ok := sec.(map[string]any)
+		if !ok {
+			continue
+		}
+		title, _ := m["title"].(string)
+		items := []string{}
+		if rawItems, ok := m["items"].([]any); ok {
+			for _, it := range rawItems {
+				if s, ok := it.(string); ok {
+					items = append(items, s)
+				}
+			}
+		}
+		if title != "" || len(items) > 0 {
+			out = append(out, map[string]any{"title": title, "items": items})
+		}
+	}
+	return out, nil
 }
 func contentString(v any) string {
 	switch x := v.(type) {

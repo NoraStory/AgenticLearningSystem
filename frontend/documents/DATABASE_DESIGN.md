@@ -294,21 +294,26 @@ CREATE TABLE learning_path_stages (
 
 ```sql
 CREATE TABLE resume_templates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(60) PRIMARY KEY,           -- 内置模板为固定 id(如 tech-standard)；自定义模板为 uuid
     name VARCHAR(100) NOT NULL,
-    category VARCHAR(50) NOT NULL, -- tech/pm/designer/marketing/general/academic/freshgraduate
+    category VARCHAR(50) NOT NULL, -- tech/pm/designer/marketing/general/academic/freshgraduate/custom
     description TEXT,
-    style_description TEXT,
-    sections JSONB NOT NULL, -- [{title, required, placeholder}]
-    preview_url VARCHAR(500),
-    is_active BOOLEAN DEFAULT true,
-    sort_order INT DEFAULT 0,
+    preview VARCHAR(20),                  -- 模板预览 emoji
+    sections JSONB NOT NULL,              -- 章节名数组(字符串)；自定义模板注册时写入确认后的章节名
+    style TEXT,                           -- 风格描述
+    object_key VARCHAR(500),              -- MinIO 中模板原文件 key(自定义模板)
+    registered_path VARCHAR(500),         -- 注册后(已注入占位符)模板本地路径 backend/data/templates/{id}.docx
+    status VARCHAR(20) DEFAULT '',        -- draft(已上传未确认)/ ready(确认注册完成)；内置模板为空
+    owner_id VARCHAR(60) DEFAULT '',      -- 上传者；空串 = 系统内置模板
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_resume_templates_category ON resume_templates(category);
-CREATE INDEX idx_resume_templates_active ON resume_templates(is_active);
+CREATE INDEX idx_resume_templates_owner ON resume_templates(owner_id);
 ```
+
+> 变更说明(2026-08-01)：新增 `object_key` / `registered_path` / `status` / `owner_id` 四列，支持用户上传自己的 DOCX 模板并注册。GORM AutoMigrate 自动迁移。
+> 自定义模板注册流程：上传(`status=draft`) → 用户确认章节(`status=ready`) → `registered_path` 指向已注入 `{{ sections[i]['items'][j] }}` 占位符的 docx 文件。
 
 ### 11. resumes - 简历表
 

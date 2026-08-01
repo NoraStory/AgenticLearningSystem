@@ -92,6 +92,8 @@ func New(cfg config.Config, services *database.Services, store *storage.Store, l
 	api.POST("/agent/workflow/confirm", s.confirmWorkflow)
 	api.GET("/agent/workflow/:id", s.workflowStatus)
 	api.GET("/resume/templates", s.resumeTemplates)
+	api.POST("/resume/templates/upload", s.resumeTemplateUpload)
+	api.POST("/resume/templates/:id/confirm", s.resumeTemplateConfirm)
 	api.POST("/resume/upload", s.resumeUpload)
 	api.POST("/resume/analyze", s.resumeAnalyze)
 	api.POST("/resume/optimize", s.resumeOptimize)
@@ -195,5 +197,5 @@ func (s *Server) health(c *gin.Context) {
 	if !dbOK {
 		status = http.StatusServiceUnavailable
 	}
-	c.JSON(status, gin.H{"status": map[bool]string{true: "ok", false: "degraded"}[dbOK], "database": dbOK, "redis": redisOK, "minio": "configured", "time": time.Now().Format(time.RFC3339)})
+	c.JSON(status, gin.H{"status": map[bool]string{true: "ok", false: "degraded"}[dbOK], "database": dbOK, "redis": redisOK, "minio": "configured", "gotenberg": s.gotenbergHealthy(), "time": time.Now().Format(time.RFC3339)})
 }

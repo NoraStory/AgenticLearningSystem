@@ -25,6 +25,9 @@ type apiRequest struct {
 	Stream          bool    `json:"stream,omitempty"`
 	MaxOutputTokens int     `json:"max_output_tokens,omitempty"`
 	Temperature     float64 `json:"temperature,omitempty"`
+	Thinking        *struct {
+		Type string `json:"type"`
+	} `json:"thinking,omitempty"`
 }
 type responsesResponse struct {
 	Output []struct {
@@ -42,7 +45,7 @@ type chatResponse struct {
 }
 
 func New(cfg config.Config) *Client {
-	return &Client{apiKey: cfg.ArkAPIKey, baseURL: strings.TrimRight(cfg.ArkBaseURL, "/"), model: cfg.ArkModel, wireAPI: cfg.LLMWireAPI, http: &http.Client{Timeout: 90 * time.Second}}
+	return &Client{apiKey: cfg.ArkAPIKey, baseURL: strings.TrimRight(cfg.ArkBaseURL, "/"), model: cfg.ArkModel, wireAPI: cfg.LLMWireAPI, http: &http.Client{Timeout: 180 * time.Second}}
 }
 func (c *Client) Enabled() bool { return c.apiKey != "" && c.model != "" }
 func (c *Client) Chat(ctx context.Context, system, user string) (string, error) {
@@ -79,7 +82,11 @@ func (c *Client) streamResponses(ctx context.Context, system, user string, image
 	if len(images) > 0 {
 		maxTokens = 2048
 	}
-	body, _ := json.Marshal(apiRequest{Model: c.model, Input: input, Stream: true, MaxOutputTokens: maxTokens})
+	// 禁用思考模式:带 reasoning 的模型会优先输出思考过程,可能占满输出导致最终结果为空
+	reqBody := apiRequest{Model: c.model, Input: input, Stream: true, MaxOutputTokens: maxTokens, Thinking: &struct {
+		Type string `json:"type"`
+	}{Type: "disabled"}}
+	body, _ := json.Marshal(reqBody)
 	res, err := c.request(ctx, c.baseURL+"/responses", body)
 	if err != nil {
 		return err
@@ -105,7 +112,8 @@ func (c *Client) streamResponses(ctx context.Context, system, user string, image
 		if json.Unmarshal([]byte(payload), &event) != nil {
 			continue
 		}
-		if event.Delta != "" {
+		// 只收最终输出增量,忽略 reasoning/思考过程增量(它们会污染 JSON 解析)
+		if event.Delta != "" && event.Type == "response.output_text.delta" {
 			received = true
 			onToken(event.Delta)
 		} else if !received && event.Response != nil {

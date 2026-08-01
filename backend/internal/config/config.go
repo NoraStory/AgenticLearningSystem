@@ -28,6 +28,7 @@ type Config struct {
 	SearchProvider       string
 	SearchBaseURL        string
 	SearchTimeoutSeconds int
+	GotenbergURL         string
 }
 
 func Load() Config {
@@ -52,6 +53,7 @@ func Load() Config {
 		SearchProvider:       getenv("SEARCH_PROVIDER", "searxng"),
 		SearchBaseURL:        getenv("SEARCH_BASE_URL", "http://localhost:8081"),
 		SearchTimeoutSeconds: getint("SEARCH_TIMEOUT_SECONDS", 8),
+		GotenbergURL:         getenv("GOTENBERG_URL", "http://localhost:3000"),
 	}
 }
 

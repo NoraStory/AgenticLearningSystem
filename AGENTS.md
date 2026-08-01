@@ -18,6 +18,7 @@
 │   │   └── storage/          # MinIO 对象存储
 │   ├── migrations/           # SQL 迁移
 │   ├── prompts/              # 可编辑系统提示词（运行时热加载）
+│   ├── scripts/              # docx 模板工具 Python 脚本（tpl_parse/register/render + requirements.txt）
 │   └── data/uploads/         # 上传目录（内容不入库，仅保留 .gitkeep）
 ├── frontend/                 # Next.js 16 + React 19 + TypeScript 5 + Tailwind 4
 │   ├── src/app/              # App Router 页面
@@ -27,7 +28,7 @@
 ├── scripts/                  # PowerShell 启停脚本
 ├── searxng/                  # SearXNG 联网搜索配置
 ├── tests/                    # 测试夹具
-├── docker-compose.yml        # 基础设施编排（PostgreSQL+pgvector / Redis / MinIO / SearXNG）
+├── docker-compose.yml        # 基础设施编排（PostgreSQL+pgvector / Redis / MinIO / SearXNG / Gotenberg）
 ├── .env.example              # 环境变量模板
 └── .gitignore
 ```
@@ -97,6 +98,15 @@ corepack pnpm exec next build
 - 配置 Ark（豆包）模型：复制 `.env.example` 为 `.env`，填入 `ARK_API_KEY` / `ARK_MODEL` / `ARK_BASE_URL`。
 - `backend/internal/llm/client.go` 在配置完成后自动调用 Ark Chat Completions / Responses API。
 - `MaxOutputTokens` 为 4096（图片 2048），temperature 0.7，确保回答充分详细。
+
+## 简历模块（docx 模板 + AI 优化）
+
+- **模板注册流程**：上传 DOCX → `tpl_parse.py` 解析结构 → LLM 章节识别（无 LLM 按 Heading 粗识别）→ 前端确认 → `tpl_register.py` 注入占位符 → 存 `backend/data/templates/{id}.docx`（`status=ready`）。
+- **docxtpl 占位符语法**：必须是 `{{ sections[i]['items'][j] }}`（方括号），点号索引 `sections.0.items.0` 会静默渲染为空（Jinja2 特性）。
+- **Windows 编码**：Go 以 UTF-8 调 Python 子进程；三个脚本开头已 `reconfigure(encoding="utf-8")`，不要移除。
+- **AI 优化（diff 式）**：`resume_opt.go` 的 `applyChanges` 校验 LLM 返回的修改点；姓名/邮箱/电话/日期锁定不可改（`lockedFieldPatterns`）。
+- **导出**：ready 模板走 docxtpl 渲染；PDF 经 Gotenberg（docker 服务，封装 LibreOffice）转换保留样式；Gotenberg 不可用回退文本版 PDF。
+- Python 依赖：`backend/scripts/requirements.txt`（python-docx + docxtpl），安装到 `backend/.venv/`。
 
 ## 文档索引
 

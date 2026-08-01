@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { apiDownload, apiFetch } from '@/lib/api';
+import Markdown from '@/components/Markdown';
+import TemplateRegisterModal from './components/TemplateRegisterModal';
 import {
   Upload,
   FileText,
@@ -14,6 +16,7 @@ import {
   Eye,
   RefreshCw,
   X,
+  Plus,
 } from 'lucide-react';
 
 // 模板类型定义（对应数据库结构）
@@ -55,6 +58,7 @@ export default function ResumePage() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizedResume, setOptimizedResume] = useState<string>('');
   const [exportFormat, setExportFormat] = useState<'pdf' | 'docx' | 'html'>('pdf');
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 从后端数据库读取模板
@@ -63,6 +67,22 @@ export default function ResumePage() {
       .then((data) => setTemplates(data.templates))
       .catch(() => setTemplates(getMockTemplates()))
       .finally(() => setIsLoadingTemplates(false));
+
+    // 恢复上次会话的分析状态(离开页面再回来不丢失)
+    const savedId = localStorage.getItem('codeforge_resume_file_id');
+    const savedName = localStorage.getItem('codeforge_resume_filename');
+    const savedAnalysis = localStorage.getItem('codeforge_resume_analysis');
+    if (savedId && savedName) {
+      setUploadedFileId(savedId);
+      setUploadedFile(new File([], savedName));
+      if (savedAnalysis) {
+        try {
+          setAnalysisResult(JSON.parse(savedAnalysis));
+        } catch {
+          /* ignore corrupt cache */
+        }
+      }
+    }
   }, []);
   // Mock 模板数据（实际应从数据库获取）
   const getMockTemplates = (): ResumeTemplate[] => [
@@ -169,14 +189,29 @@ export default function ResumePage() {
     if (!uploadedFile) return;
     setIsAnalyzing(true);
     try {
-      const form = new FormData();
-      form.append('file', uploadedFile);
-      const uploaded = await apiFetch<{ file_id: string }>('/api/v1/resume/upload', { method: 'POST', body: form });
-      setUploadedFileId(uploaded.file_id);
-      const result = await apiFetch<{ analysis: AnalysisResult }>('/api/v1/resume/analyze', {
-        method: 'POST', body: JSON.stringify({ file_id: uploaded.file_id }),
+      // 已有 file_id 且本地有分析结果,直接复用,不重复调后端
+      if (uploadedFileId && analysisResult) {
+        return;
+      }
+      let fileId = uploadedFileId;
+      if (!fileId && uploadedFile.name && uploadedFile.size === 0) {
+        // 从 localStorage 恢复的占位 File,已有 file_id
+        fileId = localStorage.getItem('codeforge_resume_file_id') || '';
+      }
+      if (!fileId) {
+        const form = new FormData();
+        form.append('file', uploadedFile);
+        const uploaded = await apiFetch<{ file_id: string }>('/api/v1/resume/upload', { method: 'POST', body: form });
+        fileId = uploaded.file_id;
+        setUploadedFileId(fileId);
+        localStorage.setItem('codeforge_resume_file_id', fileId);
+        localStorage.setItem('codeforge_resume_filename', uploadedFile.name);
+      }
+      const result = await apiFetch<{ analysis: AnalysisResult; cached?: boolean }>('/api/v1/resume/analyze', {
+        method: 'POST', body: JSON.stringify({ file_id: fileId }),
       });
       setAnalysisResult(result.analysis);
+      localStorage.setItem('codeforge_resume_analysis', JSON.stringify(result.analysis));
     } catch (error) {
       console.error(error);
     } finally {
@@ -204,9 +239,17 @@ export default function ResumePage() {
       setIsOptimizing(false);
     }
   };
-  const handleExport = () => {
-    // 模拟导出
-    alert(`正在导出为 ${exportFormat.toUpperCase()} 格式...`);
+  const handleExport = async () => {
+    if (!optimizedResume) return;
+    try {
+      await apiDownload(
+        '/api/v1/resume/export',
+        { format: exportFormat, template_id: selectedTemplate || undefined, content: { text: optimizedResume } },
+        `resume.${exportFormat}`,
+      );
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleRemoveFile = () => {
@@ -214,6 +257,9 @@ export default function ResumePage() {
     setUploadedFileId('');
     setAnalysisResult(null);
     setOptimizedResume('');
+    localStorage.removeItem('codeforge_resume_file_id');
+    localStorage.removeItem('codeforge_resume_filename');
+    localStorage.removeItem('codeforge_resume_analysis');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -440,8 +486,16 @@ export default function ResumePage() {
             <div className="bg-card rounded-xl border border-border p-6">
               <h2 className="text-lg font-semibold text-foreground mb-4">选择简历模板</h2>
               <p className="text-sm text-muted-foreground mb-4">
-                模板从数据库加载，AI 将读取模板结构并写入优化内容
+                模板从数据库加载,AI 将读取模板结构并写入优化内容。也可上传你自己的 DOCX 模板。
               </p>
+
+              <button
+                onClick={() => setShowTemplateModal(true)}
+                className="mb-4 w-full px-4 py-2.5 rounded-lg border-2 border-dashed border-primary/40 text-sm text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                上传我的 DOCX 模板
+              </button>
 
               {/* 分类筛选 */}
               <div className="flex flex-wrap gap-2 mb-4">
@@ -557,9 +611,7 @@ export default function ResumePage() {
                     </div>
 
                     <div className="bg-muted/50 rounded-xl p-6 mb-4 max-h-96 overflow-y-auto">
-                      <pre className="whitespace-pre-wrap text-sm text-foreground font-mono">
-                        {optimizedResume}
-                      </pre>
+                      <Markdown>{optimizedResume}</Markdown>
                     </div>
 
                     {/* 导出选项 */}
@@ -617,6 +669,17 @@ export default function ResumePage() {
           </div>
         )}
       </div>
+
+      {showTemplateModal && (
+        <TemplateRegisterModal
+          onClose={() => setShowTemplateModal(false)}
+          onRegistered={() => {
+            apiFetch<{ templates: ResumeTemplate[] }>('/api/v1/resume/templates')
+              .then((data) => setTemplates(data.templates))
+              .catch(() => undefined);
+          }}
+        />
+      )}
     </div>
   );
 }
